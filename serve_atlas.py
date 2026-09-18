@@ -16,7 +16,7 @@ def main():
     dbpath=Path(args.db).resolve()
     if ROOT not in dbpath.parents:raise SystemExit('Database must remain inside the D-drive project')
     store=Store(dbpath);token=secrets.token_urlsafe(32);origin=f'http://127.0.0.1:{args.port}'
-    assets={'/':'index.html','/workbench.css':'workbench.css','/workbench.js':'workbench.js'}
+    assets={'/':'index.html','/workbench.css':'workbench.css','/workbench.js':'workbench.js','/workspace.js':'workspace.js','/workspace.css':'workspace.css','/themes.css':'themes.css'}
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args):pass
         def reply(self,data,status=200,mime='application/json; charset=utf-8'):
@@ -27,7 +27,8 @@ def main():
             if not self.allowed():return self.reply({'error':'Host rejected'},403)
             parsed=urlsplit(self.path);q=parse_qs(parsed.query);route=parsed.path
             try:
-                if route=='/api/session':return self.reply({'token':token,'companies':['NVDA','ADBE']})
+                if route=='/api/session':return self.reply({'token':token,'companies':store.companies(),'theme':store.theme()})
+                if route=='/api/companies':return self.reply({'companies':store.companies()})
                 if route=='/api/state':return self.reply(store.state(q.get('company',['NVDA'])[0],q.get('asof',['2025-03-01'])[0]))
                 if route=='/api/export':return self.reply(store.export(q['company'][0],q['asof'][0]),mime='text/markdown; charset=utf-8')
                 if route in assets:

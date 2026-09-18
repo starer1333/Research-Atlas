@@ -1,9 +1,9 @@
-"""Deterministic, explicit-assumption operating model. All monetary values USD million."""
+"""Deterministic operating model. Monetary values use the company's currency, millions."""
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
 import math
 
-VERSION='atlas-operating-2.0'
+VERSION='atlas-operating-2.1'
 class ValidationError(ValueError): pass
 
 def number(value):
@@ -25,10 +25,10 @@ def diagnose(periods):
     if not years:return {'years':[],'ratios':{},'checks':[],'bridges':[]}
     current=periods[years[-1]];previous=periods[years[-2]] if len(years)>1 else {}
     checks=[]
-    for label,keys,func in [('收入减成本等于毛利',['revenue','cost','gross_profit'],lambda x:x['revenue']-x['cost']-x['gross_profit']),('毛利减费用等于经营利润',['gross_profit','opex','operating_income'],lambda x:x['gross_profit']-x['opex']-x['operating_income']),('资产等于负债加权益',['assets','liabilities','equity'],lambda x:x['assets']-x['liabilities']-x['equity'])]:
+    for label,keys,func in [('收入减成本等于毛利',['revenue','cost','gross_profit'],lambda x:x['revenue']-x['cost']-x['gross_profit']),('毛利减费用加其他经营收益等于经营利润',['gross_profit','opex','operating_income'],lambda x:x['gross_profit']-x['opex']+x.get('other_operating_income',0)-x['operating_income']),('资产等于负债加权益',['assets','liabilities','equity'],lambda x:x['assets']-x['liabilities']-x['equity'])]:
         available=all(k in current for k in keys);delta=func(current) if available else None
         checks.append({'label':label,'status':'pass' if available and abs(delta)<.01 else 'fail' if available else 'missing','difference':delta,'inputs':keys})
-    ratios={'gross_margin':ratio(current.get('gross_profit'),current.get('revenue')),'op_margin':ratio(current.get('operating_income'),current.get('revenue')),'net_margin':ratio(current.get('net_income'),current.get('revenue')),'cash_conversion':ratio(current.get('cfo'),current.get('net_income')),'sbc_ratio':ratio(current.get('sbc'),current.get('revenue')),'revenue_growth':ratio(current.get('revenue',0)-previous['revenue'],previous['revenue']) if 'revenue' in previous else None}
+    ratios={'gross_margin':ratio(current.get('gross_profit'),current.get('revenue')),'op_margin':ratio(current.get('operating_income'),current.get('revenue')),'net_margin':ratio(current.get('net_income'),current.get('revenue')),'cash_conversion':ratio(current.get('cfo'),current.get('net_income')),'sbc_ratio':ratio(current.get('sbc'),current.get('revenue')),'revenue_growth':ratio(current.get('revenue',0)-previous['revenue'],previous['revenue']) if 'revenue' in previous and 'revenue' in current else None}
     fcf=None
     if all(k in current for k in ['cfo','capex','capex_principal']): fcf=current['cfo']-current['capex']-current['capex_principal']
     # Ending-balance proxies are named explicitly; no false average-balance turnover ratios.
@@ -38,12 +38,13 @@ def diagnose(periods):
     if all(k in current and k in previous for k in ['revenue','gross_profit','opex']) and current['revenue'] and previous['revenue']:
         r0=number(previous['revenue']);r1=number(current['revenue']);m0=number(previous['gross_profit'])/r0;m1=number(current['gross_profit'])/r1
         bridges=[{'name':'收入规模效应','value':rounded((r1-r0)*m0),'formula':'(本期收入 - 上期收入) × 上期毛利率'},{'name':'毛利率效应','value':rounded(r1*(m1-m0)),'formula':'本期收入 × (本期毛利率 - 上期毛利率)'},{'name':'费用变化','value':rounded(number(previous['opex'])-number(current['opex'])),'formula':'上期费用 - 本期费用'}]
+        if 'other_operating_income' in current and 'other_operating_income' in previous:bridges.append({'name':'其他经营收益变化','value':rounded(number(current['other_operating_income'])-number(previous['other_operating_income'])),'formula':'本期其他经营收益 − 上期其他经营收益'})
     return {'years':years,'ratios':ratios,'checks':checks,'bridges':bridges,'fcf':fcf,'current':current,'previous':previous}
 
 def defaults(company,metrics,segments):
-    rev=metrics['revenue'];hw=company=='NVDA'
-    params={f'growth_{i}':25 if hw and i==0 else 8 if hw else [10,9,-5][i] for i in range(len(segments))}
-    params.update({'terminal_revenue_growth':5,'gross_margin':ratio(metrics['gross_profit'],rev),'opex_ratio':ratio(metrics['opex'],rev),'tax_rate':17 if hw else 20,'da_ratio':ratio(metrics['da'],rev) if 'da' in metrics else 3,'capex_ratio':ratio(metrics['capex'],rev) if 'capex' in metrics else 2,'nwc_ratio':ratio(metrics['receivables']+metrics['inventory']-metrics['payables'],rev) if hw else 5,'opening_nwc_ratio':ratio(metrics['receivables']+metrics['inventory']-metrics['payables'],rev) if hw else 5,'wacc':10,'terminal_growth':2.5})
+    rev=metrics['revenue'];has_nwc=all(k in metrics for k in ['receivables','inventory','payables'])
+    params={f'growth_{i}':10 for i in range(len(segments))}
+    params.update({'terminal_revenue_growth':5,'gross_margin':ratio(metrics['gross_profit'],rev),'opex_ratio':ratio(metrics['gross_profit']-metrics['operating_income'],rev),'tax_rate':20,'da_ratio':ratio(metrics['da'],rev) if 'da' in metrics else 3,'capex_ratio':ratio(metrics['capex'],rev) if 'capex' in metrics else 2,'nwc_ratio':ratio(metrics['receivables']+metrics['inventory']-metrics['payables'],rev) if has_nwc else 5,'opening_nwc_ratio':ratio(metrics['receivables']+metrics['inventory']-metrics['payables'],rev) if has_nwc else 5,'wacc':10,'terminal_growth':2.5})
     return params
 
 def validate(params,n):
@@ -67,7 +68,7 @@ def project(company,metrics,segments,params,base_year):
     terminal=fcff*(1+p['terminal_growth'])/(p['wacc']-p['terminal_growth']);terminal_pv=terminal/(1+p['wacc'])**5;ev=pv+terminal_pv
     equity=None
     if 'cash_securities' in metrics and 'debt' in metrics:equity=ev+number(metrics['cash_securities'])-number(metrics['debt'])
-    return {'rows':rows,'enterprise_value':rounded(ev),'equity_value':rounded(equity) if equity is not None else None,'pv_cashflows':rounded(pv),'pv_terminal':rounded(terminal_pv),'terminal_share':rounded(terminal_pv/ev*100) if ev else None,'model_version':VERSION,'basis':'Assumed + Calculated','warnings':['研究假设，不是管理层指引或统计置信区间。','FCFF 为简化经营模型：营运资金使用比例，未完成三表联动；不计算每股目标价。','期初营运资金比例对 Adobe 为显式假设；税务亏损结转未建模。' if company=='ADBE' else '营运资金只覆盖应收、存货与应付；其他项目未建模。']}
+    return {'rows':rows,'enterprise_value':rounded(ev),'equity_value':rounded(equity) if equity is not None else None,'pv_cashflows':rounded(pv),'pv_terminal':rounded(terminal_pv),'terminal_share':rounded(terminal_pv/ev*100) if ev else None,'model_version':VERSION,'basis':'Assumed + Calculated','warnings':['研究假设，不是管理层指引或统计置信区间。','FCFF 为简化经营模型：营运资金使用比例，未完成三表联动；不计算每股目标价。','营运资金为显式比例假设；历史起点仅覆盖应收、存货与应付。缺失的折旧、资本支出和营运资金比例使用练习假设，需要用户另行论证。']}
 
 def scenario_set(company,metrics,segments,params,year):
     validate(params,len(segments));params={k:float(number(v)) for k,v in params.items()};out={}

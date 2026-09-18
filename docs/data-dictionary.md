@@ -1,5 +1,11 @@
 # 指标与数据契约
 
+## V2.1 当前契约 / 2026-09-19
+
+公司注册表支持任意公司与 USD/CNY/EUR/HKD/JPY/GBP、GAAP/IFRS/CAS、合并/母公司范围。指标字典见 `atlas/relations.py` 的 `METRICS`；新字段含期间起止、原始数值及单位，标准化单位为呈报币种的百万。金融净利息与现金口径独立建模。导入须匹配公司档案，同一年度标签不能具有冲突的起止日期。预置来源扩展至 AMD，Calculated 汇总保留公式。详见 [多公司与勾稽说明](v21-multicompany-and-validation.md)。
+
+以下 V2 契约为历史记录，当前限制以上述 V2.1 为准。
+
 ## V2 已实现契约
 
 公开历史案例由 `atlas/seed.py` 初始化 SQLite：company、metric、label、value、currency、unit、period、period_type、scope、basis、kind、source_id；来源表包含 disclosed_at、url、locator、excerpt、note、内容摘要哈希；审核状态与操作记录单独保存。

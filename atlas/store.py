@@ -5,6 +5,8 @@ from datetime import datetime,timezone
 from contextlib import contextmanager
 from .seed import COMPANIES,DOCUMENTS,observations,DEMO_UPDATE
 from .engine import diagnose,defaults,scenario_set,ValidationError,valid_date,number,evaluate_forecast
+from .relations import METRICS,dashboard,reconcile
+from .peer_seed import AMD_PROFILE,AMD_DOC,AMD_DATA,CALCULATED,DIFFERENTIATION
 
 def now():return datetime.now(timezone.utc).isoformat()
 def encode(x):return json.dumps(x,ensure_ascii=False,allow_nan=False)
@@ -19,11 +21,24 @@ class Store:
             CREATE TABLE IF NOT EXISTS observations(id TEXT PRIMARY KEY, source_id TEXT, company TEXT, period TEXT, metric TEXT, content TEXT, reviewed INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS records(id TEXT PRIMARY KEY, company TEXT, kind TEXT, created_at TEXT, content TEXT, stale INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, created_at TEXT, action TEXT, target TEXT, detail TEXT);
+            CREATE TABLE IF NOT EXISTS companies(id TEXT PRIMARY KEY,content TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,content TEXT NOT NULL);
             ''')
             if not db.execute('SELECT 1 FROM documents LIMIT 1').fetchone():
                 for d in DOCUMENTS:self._document(db,d)
                 for o in observations():db.execute('INSERT INTO observations(id,source_id,company,period,metric,content) VALUES(?,?,?,?,?,?)',(o['id'],o['source_id'],o['company'],o['period'],o['metric'],encode(o)))
                 self._audit(db,'seed','dataset','公开来源摘录初始化；全部等待用户审核')
+            for ticker,original in {**COMPANIES,'AMD':AMD_PROFILE}.items():
+                profile={'currency':'USD','basis':'GAAP','scope':'consolidated','industry':'semiconductors' if ticker in ['NVDA','AMD'] else 'software','business_models':['硬件平台'] if ticker=='NVDA' else ['软件订阅'],'operating_identity':'gp_less_opex','tolerance':.01,**original}
+                if ticker=='NVDA':profile['periods']={'FY2025':{'end':'2025-01-26'},'FY2024':{'end':'2024-01-28'}}
+                db.execute('INSERT OR IGNORE INTO companies VALUES(?,?)',(ticker,encode(profile)))
+            if not db.execute('SELECT 1 FROM documents WHERE id=?',(AMD_DOC['id'],)).fetchone():
+                self._document(db,AMD_DOC)
+                for period,metrics in AMD_DATA.items():
+                    for metric,value in metrics.items():
+                        row={'id':f'AMD-{period}-{metric}','company':'AMD','period':period,'period_type':'annual','metric':metric,'label':METRICS[metric],'value':value,'currency':'USD','unit':'million','scope':'consolidated','basis':'GAAP','source_id':AMD_DOC['id'],'kind':'Calculated' if metric in CALCULATED else 'Disclosed','formula':CALCULATED.get(metric),'period_start':AMD_PROFILE['periods'][period]['start'],'period_end':AMD_PROFILE['periods'][period]['end']}
+                        db.execute('INSERT INTO observations(id,source_id,company,period,metric,content) VALUES(?,?,?,?,?,?)',(row['id'],row['source_id'],'AMD',period,metric,encode(row)))
+                self._audit(db,'seed_peer','AMD','新增官方年报历史案例，全部待用户审核；既有记录保留')
     @contextmanager
     def connect(self):
         db=sqlite3.connect(self.path,timeout=15);db.row_factory=sqlite3.Row
@@ -35,7 +50,27 @@ class Store:
         digest=hashlib.sha256(encode(d).encode()).hexdigest()
         db.execute('INSERT INTO documents VALUES(?,?,?,?,?)',(d['id'],d['company'],d['disclosed_at'],encode(d),digest))
     def check_company(self,company):
-        if company not in COMPANIES:raise ValidationError('未知公司')
+        return self.profile(company)
+    def profile(self,company):
+        with self.connect() as db:r=db.execute('SELECT content FROM companies WHERE id=?',(company,)).fetchone()
+        if not r:raise ValidationError('未知公司；请先新建公司档案')
+        return {**json.loads(r['content']),'ticker':company}
+    def companies(self):
+        with self.connect() as db:return [{**json.loads(r['content']),'ticker':r['id']} for r in db.execute('SELECT * FROM companies ORDER BY id')]
+    def create_company(self,p):
+        import re
+        ticker=str(p.get('ticker','')).strip().upper();name=str(p.get('name','')).strip()
+        if not re.fullmatch(r'[A-Z0-9][A-Z0-9._-]{0,31}',ticker) or not name:raise ValidationError('填写公司名称与唯一代码（字母、数字、点、横线，最多 32 字符）')
+        mode=p.get('mode','general');currency=p.get('currency','USD');basis=p.get('basis','GAAP');scope=p.get('scope','consolidated')
+        if str(p.get('industry','')).strip().lower()=='financial':mode='financial'
+        if mode not in ['general','hardware','software','consumer','healthcare','internet','financial']:raise ValidationError('未知分析模板')
+        if currency not in ['USD','CNY','EUR','HKD','JPY','GBP'] or basis not in ['GAAP','IFRS','CAS'] or scope not in ['consolidated','parent']:raise ValidationError('币种、准则或报表口径无效')
+        profile={'name':name,'mode':mode,'currency':currency,'basis':basis,'scope':scope,'industry':str(p.get('industry','unclassified')).strip() or 'unclassified','business_models':[str(p.get('business_model','待补充'))],'subtitle':str(p.get('industry','待分类'))+' / '+str(p.get('business_model','待补充')),'question':str(p.get('question','增长、盈利和现金流是否相互支持？')),'segments':[],'market':[],'unknowns':['请先导入带来源的财务数据。','行业分类与实际商业模式需要研究者确认。'],'operating_identity':p.get('operating_identity','with_other'),'periods':{},'tolerance':.01}
+        if profile['operating_identity'] not in ['with_other','gp_less_opex']:raise ValidationError('无效经营利润口径')
+        with self.connect() as db:
+            if db.execute('SELECT 1 FROM companies WHERE id=?',(ticker,)).fetchone():raise ValidationError('公司代码已存在；请直接选择该公司')
+            db.execute('INSERT INTO companies VALUES(?,?)',(ticker,encode(profile)));self._audit(db,'create_company',ticker,'新建公司档案；未编造任何指标')
+        return {'ticker':ticker,'message':'档案已建立，下一步导入财务数据'}
     def state(self,company,asof):
         self.check_company(company);valid_date(asof)
         with self.connect() as db:
@@ -51,20 +86,33 @@ class Store:
             records=[{**dict(r),'content':json.loads(r['content'])} for r in db.execute('SELECT * FROM records WHERE company=? ORDER BY created_at DESC',(company,))]
             audit=[dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 40')]
         visible_sources={d['id'] for d in docs}
-        profile={**COMPANIES[company],'ticker':company};profile['segments']=[s for s in profile['segments'] if s['source'] in visible_sources];profile['market']=[m for m in profile['market'] if m['source'] in visible_sources];diagnostics=diagnose(periods)
-        required={'revenue','gross_profit','opex'} | ({'receivables','inventory','payables'} if company=='NVDA' else set())
+        profile=self.profile(company);profile['segments']=[s for s in profile['segments'] if s['source'] in visible_sources];profile['market']=[m for m in profile['market'] if m['source'] in visible_sources];diagnostics=diagnose(periods)
+        for o in obs:
+            if o.get('period_end'):profile.setdefault('periods',{})[o['period']]={'start':o.get('period_start'),'end':o['period_end']}
+        latest_year=diagnostics['years'][-1] if diagnostics['years'] else None
+        source_periods={'nv-fy25':'FY2025','ad-fy24':'FY2024'}
+        profile['segments']=[s for s in profile['segments'] if s.get('period',source_periods.get(s['source']))==latest_year]
+        if latest_year and not profile['segments'] and diagnostics['current'].get('revenue') is not None:
+            revenue=next(o for o in reversed(obs) if o['period']==latest_year and o['metric']=='revenue')
+            profile['segments']=[{'name':'合并或主体总收入（未拆分业务）','value':revenue['value'],'source':revenue['source_id'],'kind':'Disclosed','period':latest_year}]
+        required={'revenue','gross_profit','operating_income','opex'}
         if diagnostics['years'] and required <= set(diagnostics['current']) and diagnostics['current']['revenue'] and profile['segments']:
             params=defaults(company,diagnostics['current'],profile['segments'])
         else:params=None
-        return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'defaults':params,'records':records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；预置研究问题由 AI 起草，尚未人工确认。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        checks=dashboard(periods,profile)
+        diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
+        if profile['mode']=='financial':params=None
+        return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；预置研究问题由 AI 起草，尚未人工确认。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
     def calculate(self,company,asof,params):
         s=self.state(company,asof)
         if not s['diagnostics']['years']:raise ValidationError('截至研究日期没有可用的年度输入')
+        if s['company']['mode']=='financial':raise ValidationError('金融机构不能使用一般企业 FCFF；请使用金融业务报表口径')
         if s['defaults'] is None:raise ValidationError('年度输入不完整，不能启动预测模型')
         c=s['company'];metrics=s['diagnostics']['current'];year=int(s['diagnostics']['years'][-1][2:])
         # Revenue groups are sourced from a specific annual release; never silently rebase.
-        expected='FY2025' if company=='NVDA' else 'FY2024'
-        if s['diagnostics']['years'][-1]!=expected:raise ValidationError('新的年度资料需要先更新收入分组，不能沿用旧模型基期')
+        expected=s['diagnostics']['years'][-1]
+        if c['mode']=='financial':raise ValidationError('金融机构不能套用一般企业 FCFF 模型；可使用基础报表与净利息勾稽')
+        if any(x['period']==expected and ((x['id'] in ['gross','operating'] and x['status']!='pass') or (x['id']=='balance' and x['status']=='fail')) for x in s['relations']['checks']):raise ValidationError('核心损益输入未通过勾稽，或资产负债存在差额；请先在勾稽中心核对')
         if abs(sum(x['value'] for x in c['segments'])-metrics['revenue'])>.01:raise ValidationError('收入分组与最新合并收入不一致，请先审核与更新分组')
         result=scenario_set(company,metrics,c['segments'],params,year)
         chosen={}
@@ -79,7 +127,15 @@ class Store:
             db.execute('INSERT INTO records VALUES(?,?,?,?,?,0)',(ident,company,kind,now(),encode(content)));self._audit(db,'save_'+kind,ident,'用户保存研究记录')
         return ident
     def action(self,route,p):
+        if route=='create-company':return self.create_company(p)
+        if route=='save-theme':
+            name=p.get('theme')
+            if name not in ['original','mono','porcelain','navy','plum','copper','night']:raise ValidationError('请选择预设主题')
+            with self.connect() as db:db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',('theme',encode(name)))
+            return {'theme':name}
         company=p.get('company');self.check_company(company)
+        if route=='compare':return self.compare(company,p.get('peers',[]),p['asof'],p.get('nearby',False))
+        if route=='preview-import':return self.preview_import(p['document'],company)
         if route=='export-file':
             content=self.export(company,p['asof']);folder=self.path.parent/'exports';folder.mkdir(parents=True,exist_ok=True)
             destination=folder/(f'Research-Atlas-{company}-{valid_date(p["asof"])}-{identity()[:8]}.md')
@@ -119,7 +175,8 @@ class Store:
             vals={k:float(number(p[k])) for k in ['low','predicted','high']}
             if not 0<=vals['low']<=vals['predicted']<=vals['high']:raise ValidationError('收入预测需满足 0 ≤ 下界 ≤ 点估计 ≤ 上界')
             if not str(p.get('reason','')).strip():raise ValidationError('请写明预测依据')
-            return {'id':self.save_record(company,'forecast',{**vals,'asof':p['asof'],'period':period,'metric':'revenue','unit':'million','currency':'USD','basis':'GAAP','scope':'consolidated','reason':p['reason'],'mode':'historical_exercise' if p['asof']<now()[:10] else 'prospective_unverified'})}
+            profile=self.profile(company)
+            return {'id':self.save_record(company,'forecast',{**vals,'asof':p['asof'],'period':period,'metric':'revenue','unit':'million','currency':profile['currency'],'basis':profile['basis'],'scope':profile['scope'],'reason':p['reason'],'mode':'historical_exercise' if p['asof']<now()[:10] else 'prospective_unverified'})}
         if route=='evaluate':
             s=self.state(company,p['asof']);record=next((r for r in s['records'] if r['id']==p['id'] and r['kind']=='forecast'),None)
             if not record:raise ValidationError('预测不存在')
@@ -134,8 +191,13 @@ class Store:
             if p['document'].get('company')!=company:raise ValidationError('导入资料与当前研究公司不一致')
             return self.import_document(p['document'])
         raise ValidationError('未知操作')
-    def import_document(self,p):
-        self.check_company(p.get('company'));valid_date(p.get('disclosed_at'))
+    def validate_document(self,p):
+        profile=self.check_company(p.get('company'));valid_date(p.get('disclosed_at'))
+        with self.connect() as db:
+            existing=[json.loads(r['content']) for r in db.execute('SELECT content FROM observations WHERE company=?',(p['company'],))]
+        known_windows=dict(profile.get('periods',{}))
+        for old in existing:
+            if old.get('period_end'):known_windows[old['period']]={'start':old.get('period_start'),'end':old['period_end']}
         from urllib.parse import urlparse
         url=urlparse(p.get('url',''))
         if url.scheme!='https' or not url.netloc:raise ValidationError('来源必须为 HTTPS 链接；后端不会访问该链接')
@@ -143,15 +205,34 @@ class Store:
         rows=p.get('observations',[])
         if not rows or len(rows)>200:raise ValidationError('每次导入 1 至 200 个指标')
         import re
-        clean=[]
+        clean=[];seen=set();period_windows={};scales={'one':.000001,'thousand':.001,'ten_thousand':.01,'million':1,'billion':1000}
         for o in rows:
-            if o.get('company')!=p['company'] or o.get('currency')!='USD' or o.get('unit')!='million' or o.get('scope')!='consolidated' or o.get('basis')!='GAAP' or o.get('kind')!='Disclosed':raise ValidationError('当前导入契约仅支持 USD million / consolidated / GAAP 的披露指标')
+            if o.get('company')!=p['company'] or o.get('currency')!=profile['currency'] or o.get('unit') not in scales or o.get('scope')!=profile['scope'] or o.get('basis')!=profile['basis'] or o.get('kind')!='Disclosed':raise ValidationError('导入币种、准则和报表范围须与公司档案一致；单位可用元/千/万/百万/十亿')
             if not re.fullmatch(r'FY\d{4}(Q[1-4])?',o.get('period','')):raise ValidationError('期间格式错误')
             expected='quarterly' if 'Q' in o['period'] else 'annual'
             if o.get('period_type')!=expected:raise ValidationError('单季和全年口径不一致')
-            if not o.get('id') or o.get('metric') not in ['revenue','cost','gross_profit','opex','operating_income','net_income','cfo','capex','da','sbc','receivables','inventory','payables','assets','liabilities','equity']:raise ValidationError('缺少 ID 或指标不在字典内')
-            clean.append({**o,'source_id':p['id'],'value':float(number(o['value']))})
+            if not o.get('id') or o.get('metric') not in METRICS:raise ValidationError('缺少 ID 或指标不在字典内')
+            if o['metric']=='non_gaap_op':raise ValidationError('调整后利润需独立口径映射，不能作为本次法定报表导入')
+            k=(o['period'],o['metric'])
+            if k in seen:raise ValidationError('同一资料里不能重复录入同期间同指标')
+            seen.add(k)
+            if o.get('period_start') or o.get('period_end'):
+                start=valid_date(o.get('period_start'));end=valid_date(o.get('period_end'))
+                if start>end or end>p['disclosed_at']:raise ValidationError('期间起止日期或披露日期顺序错误')
+                if o['period'] in period_windows and period_windows[o['period']]!=(start,end):raise ValidationError('同一期间标签不能对应不同起止日期')
+                period_windows[o['period']]=(start,end)
+                known=known_windows.get(o['period'],{})
+                if known.get('end') and known['end']!=end or known.get('start') and known['start']!=start:raise ValidationError('期间标签与已有资料起止日期冲突；请先确认财政期间，不可直接混合')
+            clean.append({**o,'label':METRICS[o['metric']],'source_id':p['id'],'raw_value':float(number(o['value'])),'raw_unit':o['unit'],'unit':'million','value':float(number(o['value'])*number(scales[o['unit']]))})
         doc={k:v for k,v in p.items() if k!='observations'}
+        return doc,clean
+    def preview_import(self,p,company):
+        if p.get('company')!=company:raise ValidationError('预览资料与当前公司不一致')
+        doc,clean=self.validate_document(p);periods={}
+        for o in clean:periods.setdefault(o['period'],{})[o['metric']]=o['value']
+        return {'document':doc,'observations':clean,'relations':dashboard(periods,self.profile(company)),'saved':False}
+    def import_document(self,p):
+        doc,clean=self.validate_document(p)
         with self.connect() as db:
             if db.execute('SELECT 1 FROM documents WHERE id=?',(doc['id'],)).fetchone():raise ValidationError('资料 ID 已存在，重复导入被拒绝')
             self._document(db,doc)
@@ -161,9 +242,45 @@ class Store:
             self._audit(db,'import',doc['id'],f'新增 {len(clean)} 条指标；{count} 条同公司研究记录待复核')
         return {'imported':len(clean),'affected':count,'message':'新资料已保存，旧快照保留；同公司模型、论点和备忘录标记待复核。'}
     def export(self,company,asof):
-        s=self.state(company,asof);lines=[f"# Research Atlas / {company}",f'研究截至 {asof}；单位 USD million；历史案例，非投资建议。','## 来源']
+        s=self.state(company,asof);lines=[f"# Research Atlas / {company}",f"研究截至 {asof}；单位 {s['company']['currency']} million；{s['company']['basis']} / {s['company']['scope']}；研究记录，非投资建议。",'## 来源']
         lines += [f"- {d['title']} | {d['disclosed_at']} | {d['url']} | {d['locator']}" for d in s['documents']]
-        lines += ['## 财务诊断',json.dumps(s['diagnostics'],ensure_ascii=False,indent=2),'## 研究记录（含操作时间；不代表全部在研究时点已存在）']
+        lines += ['## 财务诊断',json.dumps(s['diagnostics'],ensure_ascii=False,indent=2),'## 勾稽与输入',json.dumps(s['relations'],ensure_ascii=False,indent=2),json.dumps(s['observations'],ensure_ascii=False,indent=2),'## 研究记录（含操作时间；不代表全部在研究时点已存在）']
         for r in s['records']:lines += [f"### {r['kind']} / {r['created_at']} / 待复核={bool(r['stale'])}",json.dumps(r['content'],ensure_ascii=False,indent=2)]
         lines += ['## 限制','数据由 AI 辅助录入并保留用户审核状态。当前模型为简化经营预测，默认参数是研究练习假设，未完成完整三表、同行和市场规模覆盖。']
         return '\n\n'.join(lines)
+
+    def theme(self):
+        with self.connect() as db:r=db.execute('SELECT content FROM settings WHERE key=?',('theme',)).fetchone()
+        return json.loads(r['content']) if r else 'original'
+
+    def compare(self,company,peers,asof,nearby=False):
+        from datetime import date
+        if not isinstance(peers,list) or len(peers)>5:raise ValidationError('一次选择 1 至 5 家竞品')
+        ids=list(dict.fromkeys([company]+peers));states=[self.state(c,asof) for c in ids];base=states[0]
+        rows=[]
+        for s in states:
+            p=s['company'];years=s['diagnostics']['years'];year=years[-1] if years else None
+            metadata=p.get('periods',{}).get(year,{})
+            rows.append({'ticker':p['ticker'],'name':p['name'],'industry':p['industry'],'business_models':p['business_models'],'currency':p['currency'],'basis':p['basis'],'scope':p['scope'],'period':year,'period_end':metadata.get('end'),'period_start':metadata.get('start'),'values':s['diagnostics'].get('current',{}),'ratios':s['diagnostics']['ratios'],'observations':[o for o in s['observations'] if o['period']==year],'review_pending':sum(not o['reviewed'] for o in s['observations'] if o['period']==year),'differences':[{'dimension':a,'description':b,'source_id':c} for a,b,c in DIFFERENTIATION.get(p['ticker'],[]) if c in {d['id'] for d in s['documents']}],'documents':s['documents'],'status':'comparable','reasons':[]})
+        anchor=rows[0]
+        for row in rows:
+            reasons=[];blocking=[]
+            if not row['period']:blocking.append('当前研究时点无年度数据')
+            for key,title in [('industry','行业'),('currency','币种'),('basis','会计准则'),('scope','合并范围')]:
+                if row[key]!=anchor[key] or key=='industry' and row[key]=='unclassified':blocking.append(title+'不一致或未分类')
+            if not row['period_end'] or not anchor['period_end']:blocking.append('缺少财政期间结束日期')
+            else:
+                gap=abs((date.fromisoformat(row['period_end'])-date.fromisoformat(anchor['period_end'])).days)
+                if gap:
+                    if nearby and gap<=45:reasons.append(f'财年末相差 {gap} 天；仅作相邻年度参考')
+                    else:blocking.append(f'财年末相差 {gap} 天，不是严格同期')
+            if not row['period_start'] or not anchor['period_start']:
+                reasons.append('部分期间起始日未补齐；时长未完全核验')
+                if not nearby:blocking.append('严格比较需要完整期间起止日期')
+            elif abs((date.fromisoformat(row['period_end'])-date.fromisoformat(row['period_start'])).days-(date.fromisoformat(anchor['period_end'])-date.fromisoformat(anchor['period_start'])).days)>7:blocking.append('年度时长不一致')
+            if row['review_pending']:reasons.append(f"{row['review_pending']} 条输入待用户审核")
+            if row['ticker']!=anchor['ticker']:reasons.append('业务与产品组合可能不同；不能由合并利润率差异直接推断产品竞争力')
+            current_checks=next(s for s in states if s['company']['ticker']==row['ticker'])['relations']['checks']
+            if any(c['status']=='fail' and c['period']==row['period'] for c in current_checks):blocking.append('存在未解决的报表勾稽差异')
+            row['reasons']=blocking+reasons;row['status']='blocked' if blocking else 'qualified' if reasons else 'comparable';row['ranking_allowed']=not blocking and not reasons
+        return {'asof':asof,'rows':rows,'nearby':bool(nearby),'note':'本表不自动排名。不可比项在矩阵中隐藏；可点击公司回到原始资料。公司收入占比不是市场份额。'}

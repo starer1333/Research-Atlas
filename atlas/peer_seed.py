@@ -1,0 +1,13 @@
+"""Primary-source peer fixture; separate seed migration, never overwrites user records."""
+AMD_URL='https://ir.amd.com/financial-information/sec-filings/content/0000002488-25-000012/amd-20241228.htm'
+AMD_PROFILE={'name':'AMD','subtitle':'半导体 / 数据中心、客户端、游戏与嵌入式','mode':'hardware','industry':'semiconductors','business_models':['芯片设计','计算平台'],'currency':'USD','basis':'GAAP','scope':'consolidated','asof':'2025-03-01','operating_identity':'with_other','question':'业务组合与收购相关摊销如何影响增长和利润质量？','segments':[],'market':[],'unknowns':['数据中心含 CPU 和 GPU，不能与 NVIDIA 数据中心收入直接计算 GPU 市占率。','许可收益在经营利润桥中单列；不能让费用口径差异伪装成利润错误。','合并报表利润率差异不能直接归因于单个产品竞争力。'],'periods':{'FY2024':{'start':'2023-12-31','end':'2024-12-28'},'FY2023':{'start':'2023-01-01','end':'2023-12-30'}}}
+AMD_DOC={'id':'amd-fy24','company':'AMD','title':'AMD FY2024 Form 10-K','url':AMD_URL,'disclosed_at':'2025-02-05','locator':'印刷页 53 损益表、55 资产负债表、57–58 现金流量表','excerpt':'Consolidated Statements of Operations; Consolidated Statements of Cash Flows.','note':'USD million / US GAAP / 合并。经营费用不包含单列许可收益；现金流表期末现金包含受限现金。'}
+AMD_DATA={
+ 'FY2024':{'revenue':25785,'cost':13060,'gross_profit':12725,'opex':10873,'other_operating_income':48,'operating_income':1900,'net_income':1641,'cfo':3041,'capex':636,'sbc':1407,'receivables':6192,'inventory':5734,'payables':1990,'assets':69226,'equity':57568,'current_assets':19049,'current_liabilities':7281,'cfi':-1101,'cff':-2062,'cash_change':-122,'cash_open':3933,'cash_close':3811,'cash_balance':3787,'restricted_cash':24,'noncash_adjustments':3498,'operating_wc_cash':-2098,'liabilities':11658},
+ 'FY2023':{'revenue':22680,'cost':12220,'gross_profit':10460,'opex':10093,'other_operating_income':34,'operating_income':401,'net_income':854,'cfo':1667,'capex':546,'sbc':1384,'receivables':4323,'inventory':4351,'payables':2055,'assets':67885,'equity':55892,'current_assets':16768,'current_liabilities':6689,'cfi':-1423,'cff':-1146,'cash_change':-902,'cash_open':4835,'cash_close':3933,'cash_balance':3933,'restricted_cash':0,'noncash_adjustments':3862,'operating_wc_cash':-3049,'liabilities':11993}}
+CALCULATED={'liabilities':'资产 − 权益；需对照负债项目核对','noncash_adjustments':'现金流表逐项非现金调整合计；2024: 671+2393+1407+113−1163+65+12；2023: 642+2811+1384+98+3−1019−57','operating_wc_cash':'现金流表经营资产负债变动逐项合计；2024: −1865−1458+343+108−109+883；2023: −1339−580−383−107−419−221'}
+
+DIFFERENTIATION={
+ 'NVDA':[('业务分类','披露数据中心等市场平台收入；不是与同行完全相同的财务分部。','nv-fy25'),('比较边界','数据中心收入含不同产品与服务；当前资料不提供统一 GPU 销量与净成交价。','nv-fy25')],
+ 'AMD':[('业务分类','数据中心包含 EPYC CPU 与 Instinct GPU；此外还有客户端、游戏与嵌入式。','amd-fy24'),('财务解释','收购无形资产摊销分别进入成本与费用；许可收益另行影响经营利润。','amd-fy24')],
+ 'ADBE':[('业务分类','Digital Media、Digital Experience、Publishing & Advertising 三个收入分部。','ad-fy24'),('比较边界','软件收入、ARR 和硬件出货不是同一指标，不作跨行业竞争排名。','ad-fy24')]}
