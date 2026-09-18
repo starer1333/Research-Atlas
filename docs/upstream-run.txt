@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "D:\GPT\项目\research-atlas\upstream\FinRobot\finrobot_equity\core\src\generate_financial_analysis.py", line 11, in <module>
+    from modules.market_data_api import (
+  File "D:\GPT\项目\research-atlas\upstream\FinRobot\finrobot_equity\core\src\modules\market_data_api.py", line 4, in <module>
+    import yfinance as yf
+ModuleNotFoundError: No module named 'yfinance'
+ExitCode=1; ElapsedSeconds=0.767156
