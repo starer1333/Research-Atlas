@@ -1,5 +1,7 @@
 # 上游复现记录 / 2026-09-18
 
+范围更新：本文记录上游检查与曾进行的运行尝试，不是产品验收目标。用户已明确不要求完整复现；后续以核心思路借鉴、模块选择性复用及针对性验证为主，不因完整 API 链路未跑通而阻止 demo 开发。
+
 来源：https://github.com/AI4Finance-Foundation/FinRobot
 
 固定 commit：`6d6ccd32c1b8b1904dc656cf06897438aba3daec`。浅克隆下载至 `upstream/FinRobot`，不纳入本项目 Git。
