@@ -6,7 +6,7 @@ The contract intentionally stays relational; a graph database is not required.
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
-SCHEMA_VERSION="3.1"
+SCHEMA_VERSION="3.2"
 
 @dataclass(frozen=True)
 class Company:
@@ -19,6 +19,10 @@ class Company:
     accounting_basis:str
     scope:str
     cik:Optional[str]=None
+    business_summary:Optional[str]=None
+    business_source_ids:list=field(default_factory=list)
+    business_review_state:str="unavailable"
+    business_locator:Optional[str]=None
     metadata:dict=field(default_factory=dict)
 
 @dataclass(frozen=True)
@@ -73,6 +77,10 @@ class Segment:
     business_model:Optional[str]=None
     parent_segment_id:Optional[str]=None
     source_ids:list=field(default_factory=list)
+    review_state:str="pending_review"
+    locator:Optional[str]=None
+    excerpt:Optional[str]=None
+    extraction_method:Optional[str]=None
     metadata:dict=field(default_factory=dict)
 
 @dataclass(frozen=True)
@@ -83,6 +91,10 @@ class Product:
     segment_id:Optional[str]=None
     category:Optional[str]=None
     source_ids:list=field(default_factory=list)
+    review_state:str="pending_review"
+    locator:Optional[str]=None
+    excerpt:Optional[str]=None
+    extraction_method:Optional[str]=None
     metadata:dict=field(default_factory=dict)
 
 @dataclass(frozen=True)
@@ -165,7 +177,11 @@ def build_semantic_snapshot(state):
         id=ticker,ticker=ticker,name=profile["name"],industry=profile.get("industry","unclassified"),
         business_models=list(profile.get("business_models",[])),currency=profile.get("currency","USD"),
         accounting_basis=profile.get("basis","GAAP"),scope=profile.get("scope","consolidated"),
-        cik=profile.get("cik"),metadata={"mode":profile.get("mode"),"subtitle":profile.get("subtitle")},
+        cik=profile.get("cik"),business_summary=profile.get("business_summary"),
+        business_source_ids=list(profile.get("business_source_ids",[])),
+        business_review_state=profile.get("business_review_state","unavailable"),
+        business_locator=profile.get("business_locator"),
+        metadata={"mode":profile.get("mode"),"subtitle":profile.get("subtitle"),"business_extraction_method":profile.get("business_extraction_method")},
     )
     metrics=[metric_definition(k,v) for k,v in state.get("metric_dictionary",{}).items()]
     metric_ids={m.id for m in metrics}
@@ -173,7 +189,7 @@ def build_semantic_snapshot(state):
         Document(
             id=d["id"],company_id=ticker,title=d["title"],url=d["url"],disclosed_at=d["disclosed_at"],
             source_type=d.get("source_type","curated"),form=d.get("form"),accession=d.get("accession"),
-            locator=d.get("locator"),metadata={k:d[k] for k in ["note","parent_source_id"] if d.get(k) is not None},
+            locator=d.get("locator"),metadata={k:d[k] for k in ["note","parent_source_id","filing_text_sha256","item1_section_sha256","item1_section_chars","business_extraction_state"] if d.get(k) is not None},
         ) for d in state.get("documents",[])
     ]
     document_ids={d.id for d in documents}
@@ -193,12 +209,15 @@ def build_semantic_snapshot(state):
         ))
     observation_ids={o.id for o in observations}
     segments=[]
-    for i,s in enumerate(profile.get("segments",[])):
+    segment_rows=profile.get("business_segments") or profile.get("segments",[])
+    for i,s in enumerate(segment_rows):
         sid=s.get("id") or f"{ticker}:segment:{_slug(s.get('key') or s.get('name') or i)}"
-        src=[s["source"]] if s.get("source") in document_ids else []
+        src=[x for x in (s.get("source_ids") or ([s.get("source")] if s.get("source") else [])) if x in document_ids]
         segments.append(Segment(
             id=sid,company_id=ticker,name=s.get("name",sid),business_model=s.get("business_model"),
-            source_ids=src,metadata={k:s[k] for k in ["value","period","kind","formula"] if s.get(k) is not None},
+            source_ids=src,review_state=s.get("review_state","pending_review"),
+            locator=s.get("locator"),excerpt=s.get("excerpt"),extraction_method=s.get("extraction_method"),
+            metadata={k:s[k] for k in ["value","period","kind","formula","confidence","semantic_role"] if s.get(k) is not None},
         ))
     segment_ids={s.id for s in segments}
     products=[]
@@ -207,8 +226,9 @@ def build_semantic_snapshot(state):
         products.append(Product(
             id=pid,company_id=ticker,name=p.get("name",pid),
             segment_id=p.get("segment_id") if p.get("segment_id") in segment_ids else None,
-            category=p.get("category"),source_ids=[x for x in p.get("source_ids",[]) if x in document_ids],
-            metadata=p.get("metadata",{}),
+            category=p.get("category"),source_ids=[x for x in (p.get("source_ids") or ([p.get("source")] if p.get("source") else [])) if x in document_ids],
+            review_state=p.get("review_state","pending_review"),locator=p.get("locator"),excerpt=p.get("excerpt"),
+            extraction_method=p.get("extraction_method"),metadata={**p.get("metadata",{}),**{k:p[k] for k in ["confidence"] if p.get(k) is not None}},
         ))
     drivers=[]
     for i,d in enumerate(profile.get("market",[])):
@@ -264,10 +284,14 @@ def validate_snapshot(snapshot):
         if o["company_id"]!=company_id:issues.append(f"Observation {o['id']} company mismatch")
         if o["metric_id"] not in metrics:issues.append(f"Observation {o['id']} missing Metric")
         if o["document_id"] not in docs:issues.append(f"Observation {o['id']} missing Document")
+    if set(snapshot["company"].get("business_source_ids",[]))-docs:issues.append("Company business_summary missing Document refs")
     for s in snapshot["segments"]:
         if s["company_id"]!=company_id:issues.append(f"Segment {s['id']} company mismatch")
+        if set(s.get("source_ids",[]))-docs:issues.append(f"Segment {s['id']} missing Document refs")
     for p in snapshot["products"]:
+        if p["company_id"]!=company_id:issues.append(f"Product {p['id']} company mismatch")
         if p["segment_id"] and p["segment_id"] not in segments:issues.append(f"Product {p['id']} missing Segment")
+        if set(p.get("source_ids",[]))-docs:issues.append(f"Product {p['id']} missing Document refs")
     for q in snapshot["research_questions"]:
         if set(q["evidence_ids"])-observations:issues.append(f"ResearchQuestion {q['id']} missing Observation refs")
         if set(q["source_ids"])-docs:issues.append(f"ResearchQuestion {q['id']} missing Document refs")
