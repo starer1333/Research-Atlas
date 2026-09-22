@@ -25,15 +25,60 @@ function findingCard(f){return '<article class="finding '+f.sev+'" data-id="'+f.
 function renderResearch(s){const f=findings(s),r=s.diagnostics.ratios,c=s.diagnostics.current,y=s.diagnostics.years.at(-1);$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">60-SECOND COMPANY VIEW</span><h1>'+esc(s.company.name)+'</h1><p>'+esc(s.company.subtitle||s.company.industry)+'。V3 先给你公司结构、财务轨迹和值得研究的问题；系统提出问题，但不会自动替用户形成最终判断。</p></div>'+coverage(s)+'</div><div class="metrics">'+metric('Revenue',fmt(c.revenue),y)+metric('Revenue growth',r.revenue_growth==null?'—':fmt(r.revenue_growth,1)+'%','YoY')+metric('Operating margin',r.op_margin==null?'—':fmt(r.op_margin,1)+'%','GAAP')+metric('Cash conversion',r.cash_conversion==null?'—':fmt(r.cash_conversion,1)+'%','CFO / Net income')+'</div><section class="section">'+head('FINANCIAL TRAJECTORY','先看趋势，再决定往哪里钻','图表用来发现问题，不替代证据和解释。')+'<div class="grid2"><div class="card chart">'+chart(s)+'</div><div class="card">'+seg(s)+'</div></div></section><section class="section">'+head('WHAT CHANGED','值得研究的变化','异常关系是 investigation trigger，不是“公司好/坏”的结论。')+'<div class="findings">'+(f.length?f.map(findingCard).join(''):'<div class="empty">没有触发预设高信号规则。</div>')+'</div></section><section class="section">'+head('QUESTIONS WORTH INVESTIGATING','从问题进入，而不是从模型参数进入','这是 V3 的主路径。')+f.map((x,i)=>'<div class="question"><span>0'+(i+1)+'</span><b>'+x.q+'</b><button class="linkbtn" data-q="'+i+'">开始研究 →</button></div>').join('')+'</section>'}
 function renderEvidence(s){const checks=s.relations.checks||[];$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">EVIDENCE</span><h1>事实从哪里来？</h1><p>每个数字都要能回到来源、期间、口径和审核状态。Data Integrity 只负责识别数据问题，不代表 Financial Quality。</p></div>'+coverage(s)+'</div><section class="section">'+head('SOURCE REGISTRY','当前来源','点击打开证据面板。')+s.documents.map(d=>'<div class="source"><div><h3>'+esc(d.title)+'</h3><p>'+esc(d.disclosed_at)+' · '+esc(d.locator)+'</p></div><button data-source="'+d.id+'">查看来源</button></div>').join('')+'</section><section class="section">'+head('DATA INTEGRITY','后台完整性检查','Assets = Liabilities + Equity 在这里，不再作为财务质量结论。')+'<details class="integrity"><summary>展开 '+checks.length+' 条 consistency checks</summary>'+checks.slice(-12).map(c=>'<div class="source"><div><h3>'+esc(c.formula)+'</h3><p>'+esc(c.period)+' · '+esc(c.verification||'unresolved')+'</p></div><b>'+esc(c.status)+'</b></div>').join('')+'</details></section>'}
 function peerTable(){const s=state(),peers=Object.values(db).filter(x=>x.company.industry===s.company.industry).slice(0,3);return '<div class="gate"><span class="eyebrow">COMPARABILITY GATE</span><h3>先判断“能不能比”</h3><ul><li>Period / accounting basis / scope：当前 fixture 只做历史研究参考。</li><li>Business mix：不同公司业务组合不同，因此利润率差异只能 qualified comparison。</li><li>不自动输出竞争排名。</li></ul></div><table class="peer"><thead><tr><th>Metric</th>'+peers.map(x=>'<th>'+x.company.ticker+'</th>').join('')+'</tr></thead><tbody>'+[['Revenue growth','revenue_growth'],['Gross margin','gross_margin'],['Operating margin','op_margin'],['Cash conversion','cash_conversion']].map(([l,k])=>'<tr><td>'+l+'</td>'+peers.map(x=>'<td>'+fmt(x.diagnostics.ratios[k],1)+'%</td>').join('')+'</tr>').join('')+'</tbody></table>'}
+function previewIndustry(s){
+  const software=(s.company.mode==='software'||/software/i.test(s.company.industry||''));
+  return software?{
+    label:'SaaS / Subscription',
+    reason:'mode=software',
+    drivers:[
+      ['Recurring base','ARR / RPO / subscription revenue','Revenue'],
+      ['Retention / churn','gross retention / logo retention','Revenue'],
+      ['Expansion / NRR','NRR / DBNRR / seats','Revenue'],
+      ['Pricing / packaging','ARPU / price uplift','Revenue · Gross profit'],
+      ['SBC / opex','SBC / R&D / S&M','Operating income · CFO']
+    ],
+    notes:['ARR/RPO definitions vary and are not interchangeable with revenue.','Retention definitions and customer cohorts differ across issuers.']
+  }:{
+    label:'Semiconductor / Hardware',
+    reason:'industry / hardware fixture',
+    drivers:[
+      ['Volume / demand','shipments / units / compute demand','Revenue'],
+      ['ASP / pricing','ASP / price-mix','Revenue · Gross profit'],
+      ['Product mix','segment / product mix','Revenue · Gross profit'],
+      ['Unit cost / yield','wafer cost / yield / utilization','Cost · Gross profit'],
+      ['Inventory / transition','DIO / write-downs','Inventory · CFO'],
+      ['Capacity / CapEx','capacity commitments','CapEx · Assets']
+    ],
+    notes:['Gross margin needs fabless vs integrated-manufacturing context.','Segment revenue is not market share.']
+  }
+}
+function previewCompanyMap(s,m){
+  const segs=s.company.segments||[];
+  const metrics=['Revenue','Gross profit','CFO','Inventory'];
+  const products=s.company.mode==='software'?['Product / platform candidates']:['GPU / platform candidates'];
+  const layer=(title,rows,kind)=>'<section class="map-layer"><span class="eyebrow">'+title+'</span><div class="map-stack">'+rows.map(x=>'<article class="map-node '+(kind==='driver'?'map-driver':'')+'"><b>'+esc(x)+'</b><small>'+(kind==='driver'?'industry template':'preview node')+'</small></article>').join('')+'</div></section>';
+  return '<div class="company-map">'+
+    layer('Company',[s.company.name],'company')+'<div class="map-arrow">→</div>'+
+    layer('Segments / Products',[...segs.map(x=>x.name),...products].slice(0,5),'business')+'<div class="map-arrow">→</div>'+
+    layer('Context',['Customer / Competitor / Geography','evidence slot'],'context')+'<div class="map-arrow">→</div>'+
+    layer('Operating Drivers',m.drivers.map(x=>x[0]).slice(0,6),'driver')+'<div class="map-arrow">→</div>'+
+    layer('Financial Outcomes',metrics,'metric')+
+  '</div><p class="map-boundary">Evidence-backed objects, pending-review candidates and industry templates remain separate states. Static preview does not fabricate live SEC entities.</p>'
+}
 function businessPreview(s){
   const sourceDoc=s.documents.find(d=>/10-k|annual/i.test((d.title||'')+' '+(d.locator||'')))||s.documents[0];
   const segs=s.company.segments||[];
-  const segmentCards=segs.length?segs.map(x=>'<div class="candidate-row"><div><b>'+esc(x.name)+'</b><small>existing structured fixture · source-linked</small></div><span class="candidate-tag">reviewed separately</span></div>').join(''):'<div class="empty">静态 fixture 没有 segment rows。</div>';
-  return head('V3-6 · COMPANY MAP','10-K Business → Segment → Product → Semantic Contract','GitHub Pages 只展示交互结构；真正的 V3-6 SEC 抽取在本地 backend 运行，并把所有候选标记为 pending_review。')+
-  '<div class="grid2"><div class="card"><span class="eyebrow">10-K · ITEM 1 BUSINESS</span><h3 class="business-title">What the filing says</h3><p class="business-copy">本地 V3-6 会从最新 SEC 10-K primary HTML 中定位 Item 1. Business，并显示来源、locator、review state 与 filing excerpt。静态预览不发起 SEC 网络请求，因此这里不伪造年报摘录。</p><div class="source-meta"><b>'+esc(sourceDoc?.title||'SEC source available in local V3')+'</b><small>Live parser: deterministic · no LLM · source fingerprinted</small></div></div>'+
+  const m=previewIndustry(s);
+  const segmentCards=segs.length?segs.map(x=>'<div class="candidate-row"><div><b>'+esc(x.name)+'</b><small>existing structured fixture · source-linked</small></div><span class="candidate-tag">evidence object</span></div>').join(''):'<div class="empty">静态 fixture 没有 segment rows。</div>';
+  const drivers=m.drivers.map(d=>'<article class="driver-card"><div class="driver-top"><span class="candidate-tag">template</span><span class="driver-status">not a company fact</span></div><h4>'+esc(d[0])+'</h4><p>'+esc(d[1])+'</p><dl><dt>Financial links</dt><dd>'+esc(d[2])+'</dd><dt>Comparability</dt><dd>qualified / check definition</dd></dl></article>').join('');
+  return head('V3-7 · COMPANY / PRODUCT MAP','Company → Segment / Product → Context → Driver → Financial Outcome','静态页面展示 V3-7 / V3-8 的交互结构；真正的 SEC 语义对象和 source lineage 在本地 V3 backend 生成。')+
+  '<div class="card">'+previewCompanyMap(s,m)+'</div>'+
+  '<section class="section">'+head('V3-8 · INDUSTRY DRIVER MODULE',m.label,'Selection: '+m.reason+'。行业 driver 只告诉研究者下一步应该找什么证据。')+
+  '<div class="card"><div class="driver-grid">'+drivers+'</div><details class="integrity driver-notes"><summary>Comparability notes</summary><ul>'+m.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></details></div></section>'+
+  '<div class="grid2"><div class="card"><span class="eyebrow">10-K · ITEM 1 BUSINESS</span><h3 class="business-title">What the filing says</h3><p class="business-copy">本地 V3-6 会从最新 SEC 10-K primary HTML 中定位 Item 1. Business，并显示 source、locator、review state 与 filing excerpt。静态预览不发起 SEC 网络请求，因此这里不伪造年报摘录。</p><div class="source-meta"><b>'+esc(sourceDoc?.title||'SEC source available in local V3')+'</b><small>deterministic parser · no LLM · source fingerprinted</small></div></div>'+
   '<div class="card"><span class="eyebrow">SEGMENT CANDIDATES</span><h3 class="business-title">How the company is organized</h3><div class="candidate-list">'+segmentCards+'</div></div></div>'+
-  '<div class="grid2 business-row"><div class="card"><span class="eyebrow">PRODUCT / PLATFORM CANDIDATES</span><h3 class="business-title">What it sells or offers</h3><div class="empty compact">静态 fixture 未包含 10-K Product candidates。Live V3-6 只从明确的 “products/platforms/services include …” 句式生成候选，并保留原文 excerpt。</div></div>'+
-  '<div class="card"><span class="eyebrow">SEMANTIC CONTRACT 3.2</span><h3 class="business-title">How evidence becomes research structure</h3><div class="semantic-chain"><span>Company</span><i>→</i><span>Business</span><i>→</i><span>Segment</span><i>→</i><span>Product</span><i>→</i><span>Driver</span><i>→</i><span>Metric</span></div><p class="business-copy">每个 Business / Segment / Product 对象保留 source、locator、excerpt、extraction method 与 review state；candidate ≠ verified fact。</p></div></div>'
+  '<div class="grid2 business-row"><div class="card"><span class="eyebrow">PRODUCT / PLATFORM CANDIDATES</span><h3 class="business-title">What it sells or offers</h3><div class="empty compact">静态 fixture 未包含 live 10-K Product candidates。Local V3-6 会保留 source / excerpt / review state，未验证的 Product 不会自动映射到 Segment。</div></div>'+
+  '<div class="card"><span class="eyebrow">SEMANTIC CONTRACT 3.3</span><h3 class="business-title">Evidence structure</h3><div class="semantic-chain"><span>Company</span><i>→</i><span>Segment</span><i>→</i><span>Product</span><i>→</i><span>ContextEntity</span><i>→</i><span>Driver</span><i>→</i><span>Metric</span></div><p class="business-copy">ContextEntity supports Customer / Competitor / Geography / Channel / Risk. Template ≠ company fact; candidate ≠ reviewed evidence.</p></div></div>'
 }
 function renderAnalysis(s){$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">ANALYSIS</span><h1>发生了什么，为什么？</h1><p>Financials / Business / Peers / Scenario 都属于 Analysis，不再占据一级导航。</p></div>'+coverage(s)+'</div><div class="subnav"><button data-tab="financials" class="'+(tab==='financials'?'active':'')+'">Financials</button><button data-tab="business" class="'+(tab==='business'?'active':'')+'">Business</button><button data-tab="peers" class="'+(tab==='peers'?'active':'')+'">Peers</button><button data-tab="scenario" class="'+(tab==='scenario'?'active':'')+'">Scenario</button></div><section class="section">'+(tab==='financials'?head('FINANCIAL DIAGNOSTICS','关系优先，不是 ratio 展览','Growth → Profitability → Cash → Working Capital。')+'<div class="findings">'+findings(s).slice(0,3).map(findingCard).join('')+'</div>':tab==='business'?businessPreview(s):tab==='peers'?head('COMPARATIVE REASONING','先判断能不能比，再解释差异','Peer comparison 不等于 leaderboard。')+peerTable():head('QUESTION-FIRST SCENARIO','Scenario 由研究问题触发','静态预览暂不写入参数和版本。')+'<div class="empty"><h3>先保存一个 Research Question</h3><p>V3 不再让用户一进入产品就调 WACC / growth / margin。研究问题 → mechanism → scenario。</p></div>')+'</section>'}
 function renderReport(s){$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">RESEARCH MEMORY</span><h1>我现在怎么看？</h1><p>Report 汇集研究问题、证据、反证、情景和 revision。静态预览不保存真实记录。</p></div>'+coverage(s)+'</div><section class="section">'+head('CURRENT RESEARCH THREADS','正在研究的问题','这里最终会连接 Claim / Counter-evidence / What changes my mind。')+'<div class="timeline">'+findings(s).slice(0,3).map((f,i)=>'<article><span class="eyebrow">OPEN QUESTION · 0'+(i+1)+'</span><h3>'+f.q+'</h3><p>'+f.why+'</p></article>').join('')+'</div></section>'}
