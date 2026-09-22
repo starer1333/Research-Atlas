@@ -1,5 +1,15 @@
 # 安全边界 / 非安全认证
 
+## V3-9 / V3-10 visualization + optional AI (2026-09-22)
+
+V3-9 loads a **version-pinned Apache ECharts 6.1.0** browser bundle from `cdn.jsdelivr.net`. The local server CSP allows scripts only from `self` and that CDN host; `connect-src` remains `self`, so the browser cannot use the chart layer to call arbitrary remote APIs. This adds a third-party CDN supply-chain dependency. If stricter offline operation is required, vendor the pinned ECharts bundle into `workbench/` and restore `script-src 'self'`.
+
+V3-10 AI Research Planner is **off by default** and can only be enabled at server startup with `--enable-ai` plus `ATLAS_AI_BASE_URL`, `ATLAS_AI_API_KEY` and `ATLAS_AI_MODEL`. The API key stays server-side and is never returned by `/api/session`. The browser cannot submit or override the provider endpoint. Configuration rejects non-HTTPS endpoints and localhost/private literal IPs.
+
+The planner receives a compact research snapshot (company context, deterministic findings, current questions, industry-driver prompts, source metadata and allowed evidence/source IDs). Raw documents are not sent by default. Model output is parsed as data, labelled `ai_suggested / not_verified`, and unknown evidence/source IDs are dropped. The planner has no direct path to create or modify verified observations, calculations or final claims; a suggested question is persisted only after an explicit user action.
+
+This does **not** constitute prompt-injection resistance or model-provider security certification. Enabling a third-party AI provider means the compact snapshot is transmitted to that provider under its own privacy/security terms. Provider availability, retention policy and model behavior remain outside Research Atlas's trust boundary.
+
 ## V3 optional SEC SourceAdapter (2026-09-22)
 
 V3 adds **opt-in** outbound access to official SEC EDGAR endpoints. It is disabled unless the local server is started with `--enable-sec` and a descriptive `ATLAS_SEC_USER_AGENT` / `--sec-user-agent`. The adapter is hard-limited to `www.sec.gov` and `data.sec.gov`; it does not fetch arbitrary user-supplied URLs. The browser still connects only to the local Research Atlas origin; outbound SEC requests originate from the local Python service.
@@ -13,7 +23,7 @@ This is a convenience ingestion layer, not a security or audit certification. SE
 
 以下旧章节仅描述 V0.1。V2 的资料摘录、指标、审核、模型/预测/备忘录版本和操作日志保存至项目 `.runtime/workbench/research.sqlite3`。没有浏览器 localStorage、索引数据库或云模型调用。没有读取密钥。导出由本地服务直接写入资料库同级 `exports` 目录，文件名由服务端生成，不接受外部路径；不经过浏览器默认下载目录。
 
-本地服务绑定 127.0.0.1；静态文件采用明确白名单，不允许读取项目根目录、数据库或上游文件。写入同时校验 Host、Origin、随机会话 token、JSON 内容类型与 1MB 请求上限。数据库查询参数化。来源只存为数据，不执行文档、SQL 或生成代码，不主动抓取用户 URL。界面渲染用户文本时转义，CSP 不允许外部脚本。
+本地服务绑定 127.0.0.1；静态文件采用明确白名单，不允许读取项目根目录、数据库或上游文件。写入同时校验 Host、Origin、随机会话 token、JSON 内容类型与 1MB 请求上限。数据库查询参数化。来源只存为数据，不执行文档、SQL 或生成代码，不主动抓取用户 URL。界面渲染用户文本时转义。V2 当时不允许外部脚本；当前 V3-9 的 CSP 仅额外放行版本固定的 jsDelivr ECharts 脚本，详见上方 V3-9 / V3-10 边界。
 
 已实测：跨来源 POST 被拒绝；请求私有数据库路径返回 404；HTML 注入样本作为普通文本展示；日期截止在后端生效；公司间审核隔离与事务回滚。未做全面渗透测试，不宣称安全认证。没有实现用户身份认证，同机具有访问权限的程序仍属于信任边界。
 
