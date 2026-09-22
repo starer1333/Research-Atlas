@@ -114,11 +114,10 @@ class Store:
         if diagnostics['years'] and required <= set(diagnostics['current']) and diagnostics['current']['revenue'] and profile['segments']:
             params=defaults(company,diagnostics['current'],profile['segments'])
         else:params=None
-        # Legacy AMD calculated liabilities receive observation-level lineage IDs.
-        # Dependencies must resolve to concrete observations, not merely metric names.
+        # Legacy AMD rows retain metric-level dependency hints for accounting checks.
+        # Semantic projection resolves these hints to concrete observation IDs.
         for o in obs:
-            if o['company']=='AMD' and o['metric']=='liabilities' and o.get('kind')=='Calculated':
-                o['depends_on']=[x['id'] for x in obs if x['period']==o['period'] and x['metric'] in ['assets','equity']]
+            if o['company']=='AMD' and o['metric']=='liabilities' and o.get('kind')=='Calculated':o['depends_on']=['assets','equity']
         checks=dashboard(periods,profile,obs)
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
