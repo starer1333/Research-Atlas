@@ -33,7 +33,17 @@ def fixture():
     return company,submissions,facts
 
 def test_build_starter_pack():
-    pack=build_starter_pack(*fixture())
+    company,submissions,facts=fixture()
+    analysis={
+      "source_id":"sec:0000001234-25-000001","item1_found":True,
+      "business_summary":"Test Corp designs semiconductor systems and software.",
+      "business_locator":"Form 10-K · Item 1. Business","business_review_state":"pending_review",
+      "business_extraction_method":"10-k-item1-leading-paragraphs","section_chars":1200,
+      "content_sha256":"a"*64,"section_sha256":"b"*64,
+      "segments":[{"name":"Compute","source":"sec:0000001234-25-000001","source_ids":["sec:0000001234-25-000001"],"locator":"Form 10-K · Item 1. Business","excerpt":"Our reportable segments are Compute and Software.","review_state":"pending_review","extraction_method":"10-k-item1-explicit-list","confidence":"candidate"}],
+      "products":[{"name":"Atlas GPU","source":"sec:0000001234-25-000001","source_ids":["sec:0000001234-25-000001"],"locator":"Form 10-K · Item 1. Business","excerpt":"Our products include Atlas GPU.","review_state":"pending_review","extraction_method":"10-k-item1-explicit-list","confidence":"candidate"}],
+    }
+    pack=build_starter_pack(company,submissions,facts,filing_analysis=analysis)
     assert pack["company"]["ticker"]=="TEST"
     assert pack["adapter"]=="sec-edgar-direct"
     assert pack["coverage"]["fiscal_years"]==["FY2023","FY2024"]
@@ -41,6 +51,10 @@ def test_build_starter_pack():
     assert {"revenue","gross_profit","operating_income","opex","assets","liabilities","equity"}<=metrics
     assert all(o["source_id"].startswith("sec:") for o in pack["observations"])
     assert all(o["unit"]=="million" for o in pack["observations"])
+    assert pack["company"]["business_summary"].startswith("Test Corp")
+    assert pack["company"]["business_segments"][0]["id"].startswith("TEST:segment:")
+    assert pack["company"]["products"][0]["name"]=="Atlas GPU"
+    assert pack["coverage"]["filing_text"]["item1_found"]
 
 if __name__=="__main__":
     test_build_starter_pack()
