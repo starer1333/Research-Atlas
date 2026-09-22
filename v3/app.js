@@ -5,9 +5,22 @@ let db={},ticker='NVDA',page=previewView==='business'?'analysis':'research',tab=
 const ratio=(a,b)=>a==null||!b?null:a/b*100,growth=(a,b)=>a==null||b==null||!a?null:(b/a-1)*100;
 function state(){return db[ticker]}
 function chartHost(id,label){return '<div class="chart-canvas" id="'+id+'" role="img" aria-label="'+esc(label)+'"></div>'}
+function sceneTone(){
+  if(page==='research')return 'blue';
+  if(page==='evidence')return 'teal';
+  if(page==='report')return 'gold';
+  if(page==='analysis'){
+    return ({financials:'lavender',business:'green',peers:'mint',scenario:'gold'})[tab]||'lavender';
+  }
+  return 'blue';
+}
 function setAmbient(){
-  // Industry is analytical context, not a decorative color code.
   delete document.documentElement.dataset.ambient;
+  document.documentElement.dataset.tone=sceneTone();
+}
+function smoothRender(){
+  if(document.startViewTransition){document.startViewTransition(()=>render())}
+  else render();
 }
 function plannerPreview(){
   return '<div class="planner-shell"><div class="planner-head"><div><span class="eyebrow">V3-10 · OPTIONAL AI RESEARCH PLANNER</span><h3>AI plans the investigation. It does not own the facts.</h3></div><span class="ai-badge">OFF BY DEFAULT</span></div><p>Local V3 can send a compact grounded snapshot to an OpenAI-compatible model to suggest research questions, evidence to seek and counter-evidence. The model cannot write observations, verify evidence, calculate finance or create a final claim.</p><div class="planner-boundaries"><span>ai_suggested</span><span>not_verified</span><span>explicit save only</span><span>source-ID constrained</span></div><small>Public Pages intentionally does not call any AI provider.</small></div>'
@@ -112,7 +125,7 @@ function renderAnalysis(s){$('#content').innerHTML='<div class="hero"><div><span
 function renderReport(s){$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">RESEARCH MEMORY</span><h1>我现在怎么看？</h1><p>Report 汇集研究问题、证据、反证、情景和 revision。静态预览不保存真实记录。</p></div>'+coverage(s)+'</div><section class="section">'+head('CURRENT RESEARCH THREADS','正在研究的问题','这里最终会连接 Claim / Counter-evidence / What changes my mind。')+'<div class="timeline">'+findings(s).slice(0,3).map((f,i)=>'<article><span class="eyebrow">OPEN QUESTION · 0'+(i+1)+'</span><h3>'+f.q+'</h3><p>'+f.why+'</p></article>').join('')+'</div></section>'}
 function render(){const s=state();if(!s)return;setAmbient();nav();$('#ticker').textContent=ticker;$('#companyName').textContent=s.company.name;$('#subtitle').textContent=s.company.subtitle||s.company.industry;if(page==='research')renderResearch(s);if(page==='evidence')renderEvidence(s);if(page==='analysis')renderAnalysis(s);if(page==='report')renderReport(s);const content=$('#content');content.classList.remove('is-entering');requestAnimationFrame(()=>content.classList.add('is-entering'));renderCharts()}
 function openEvidenceFor(f){const s=state(),ys=s.diagnostics.years.slice(-2),obs=s.observations.filter(o=>f.metrics.includes(o.metric)&&ys.includes(o.period));$('#drawerTitle').textContent=f.title;$('#drawerBody').innerHTML=obs.map(o=>{const d=source(o.source_id);return '<div class="ev"><span class="eyebrow">'+esc(o.kind)+' · PENDING REVIEW</span><h3>'+esc(o.label||o.metric)+'</h3><dl><dt>Value</dt><dd>'+fmt(o.value)+' '+esc(o.currency)+' '+esc(o.unit)+'</dd><dt>Period</dt><dd>'+esc(o.period)+'</dd><dt>Basis / Scope</dt><dd>'+esc(o.basis)+' · '+esc(o.scope)+'</dd><dt>Source</dt><dd>'+esc(d?.title||o.source_id)+'</dd><dt>Locator</dt><dd>'+esc(d?.locator||'—')+'</dd></dl>'+((d&&d.url)?'<a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a>':'')+'</div>'}).join('');$('#drawer').showModal()}
-document.addEventListener('click',e=>{const p=e.target.closest('[data-page]');if(p){page=p.dataset.page;render();return}const t=e.target.closest('[data-tab]');if(t){tab=t.dataset.tab;render();return}const src=e.target.closest('[data-source]');if(src){const d=source(src.dataset.source);$('#drawerTitle').textContent=d.title;$('#drawerBody').innerHTML='<div class="ev"><dl><dt>Disclosed</dt><dd>'+d.disclosed_at+'</dd><dt>Locator</dt><dd>'+esc(d.locator)+'</dd></dl><a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a></div>';$('#drawer').showModal();return}const a=e.target.closest('[data-act]');if(a){const card=a.closest('[data-id]'),f=findings(state()).find(x=>x.id===card.dataset.id);if(a.dataset.act==='why')card.querySelector('.detail').hidden=!card.querySelector('.detail').hidden;if(a.dataset.act==='evidence')openEvidenceFor(f);if(a.dataset.act==='compare'){page='analysis';tab='peers';render()}if(a.dataset.act==='research'){page='report';render()}return}});
+document.addEventListener('click',e=>{const p=e.target.closest('[data-page]');if(p){page=p.dataset.page;smoothRender();return}const t=e.target.closest('[data-tab]');if(t){tab=t.dataset.tab;setAmbient();smoothRender();return}const src=e.target.closest('[data-source]');if(src){const d=source(src.dataset.source);$('#drawerTitle').textContent=d.title;$('#drawerBody').innerHTML='<div class="ev"><dl><dt>Disclosed</dt><dd>'+d.disclosed_at+'</dd><dt>Locator</dt><dd>'+esc(d.locator)+'</dd></dl><a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a></div>';$('#drawer').showModal();return}const a=e.target.closest('[data-act]');if(a){const card=a.closest('[data-id]'),f=findings(state()).find(x=>x.id===card.dataset.id);if(a.dataset.act==='why')card.querySelector('.detail').hidden=!card.querySelector('.detail').hidden;if(a.dataset.act==='evidence')openEvidenceFor(f);if(a.dataset.act==='compare'){page='analysis';tab='peers';render()}if(a.dataset.act==='research'){page='report';render()}return}});
 window.addEventListener('resize',()=>window.AtlasPreviewCharts?.resizeAll());
 $('#close').onclick=()=>$('#drawer').close();$('#company').onchange=e=>{ticker=e.target.value;render()};
 fetch('../data.json').then(r=>r.json()).then(x=>{db=x;$('#company').innerHTML=Object.keys(db).map(k=>'<option>'+k+'</option>').join('');render()}).catch(()=>{$('#content').innerHTML='<div class="empty">预览资料加载失败，请稍后刷新。</div>'});
