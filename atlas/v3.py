@@ -197,12 +197,19 @@ def build_v3_view(profile,diagnostics,periods,observations,documents,relations):
     summary=("当前档案将 %s 归类为 %s；主要商业模式：%s。" %
              (profile.get("name",profile.get("ticker","公司")),profile.get("industry","待分类"),
               "、".join(business_models) if business_models else "待补充"))
+    semantic_segments=profile.get("business_segments") or profile.get("segments",[])
     return {
         "summary":summary,
         "business_map":{
             "industry":profile.get("industry"),
             "business_models":business_models,
-            "segments":profile.get("segments",[]),
+            "business_summary":profile.get("business_summary"),
+            "business_source_ids":profile.get("business_source_ids",[]),
+            "business_locator":profile.get("business_locator"),
+            "business_review_state":profile.get("business_review_state","unavailable"),
+            "business_extraction_method":profile.get("business_extraction_method"),
+            "segments":semantic_segments,
+            "products":profile.get("products",[]),
             "unknowns":profile.get("unknowns",[]),
         },
         "trajectory":trajectory,
