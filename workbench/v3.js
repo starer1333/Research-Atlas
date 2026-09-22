@@ -2,7 +2,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(v,d=0)=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
-let token='',companies=[],state=null,page='research',analysisTab='financials',selectedFinding=null,peerResult=null,scenarioResult=null,serial=0;
+let token='',companies=[],sourceCapabilities={},state=null,page='research',analysisTab='financials',selectedFinding=null,peerResult=null,scenarioResult=null,serial=0;
 
 function context(){return {company:state?.company?.ticker||resolveCompany($('#companySearch').value)?.ticker||'NVDA',asof:$('#asof').value}}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,3200)}
@@ -176,8 +176,9 @@ async function load(ticker){
 }
 async function init(){
   try{
-    const session=await getJson('/api/session');token=session.token;companies=session.companies||[];
+    const session=await getJson('/api/session');token=session.token;companies=session.companies||[];sourceCapabilities=session.sources||{};
     $('#companyList').innerHTML=companies.map(c=>'<option value="'+esc(c.ticker)+'">'+esc(c.name)+'</option>').join('');
+    $('#companyHint').textContent=sourceCapabilities.sec?.enabled?'可输入已有公司，或输入新的美国上市公司 ticker，由 SEC EDGAR 建立 Starter Research Pack。':'当前使用本地资料；设置 ATLAS_SEC_USER_AGENT 并以 --enable-sec 启动后，可直接从 SEC 建立 Starter Research Pack。';
     await load(companies.find(c=>c.ticker==='NVDA')?.ticker||companies[0]?.ticker||'NVDA')
   }catch(e){showError(e.message)}
 }
@@ -196,7 +197,7 @@ document.addEventListener('click',async e=>{
   if(e.target.closest('[data-go-research]')){page='research';render();return}
   const n=e.target.closest('[data-next]');if(n){if(n.dataset.next==='analysis'){page='analysis';analysisTab='financials';render()}else if(n.dataset.next==='first-finding'){$('#findings')?.scrollIntoView({behavior:'smooth'})}else if(n.dataset.next==='pending'){document.querySelector('.source-list')?.scrollIntoView({behavior:'smooth'})}return}
 });
-$('#openCompany').addEventListener('click',()=>{const c=resolveCompany($('#companySearch').value);if(c)load(c.ticker);else showError('当前本地版未自动联网解析该公司。请选择 datalist 中已有公司；EdgarTools SourceAdapter 属于 V3 下一阶段。')});
+$('#openCompany').addEventListener('click',async()=>{const query=$('#companySearch').value.trim(),c=resolveCompany(query);if(c){await load(c.ticker);return}if(!sourceCapabilities.sec?.enabled){showError('当前未启用 SEC SourceAdapter。设置 ATLAS_SEC_USER_AGENT 并用 --enable-sec 启动后，可直接输入美国上市公司 ticker。');return}clearError();$('#status').textContent='SEC EDGAR：正在解析公司、filings 与 Company Facts…';try{const result=await post('sec-starter-pack',{query});const list=await getJson('/api/companies');companies=list.companies||companies;$('#companyList').innerHTML=companies.map(x=>'<option value="'+esc(x.ticker)+'">'+esc(x.name)+'</option>').join('');if(result.asof)$('#asof').value=result.asof;toast('Starter Research Pack 已建立；财务 observations 待人工核验');await load(result.ticker)}catch(e){showError(e.message);$('#status').textContent='SEC Starter Pack 建立失败'}});
 $('#companySearch').addEventListener('keydown',e=>{if(e.key==='Enter')$('#openCompany').click()});
 $('#asof').addEventListener('change',()=>load(context().company));
 $('#closeDrawer').addEventListener('click',()=>$('#evidenceDrawer').close());

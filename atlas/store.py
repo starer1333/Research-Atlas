@@ -1,4 +1,4 @@
-"""Local versioned research storage. No document execution and no cloud calls."""
+"""Local versioned research storage. Document content is never executed. Optional SEC ingestion is explicit."""
 import sqlite3,json,hashlib,uuid
 from pathlib import Path
 from datetime import datetime,timezone
@@ -8,6 +8,7 @@ from .engine import diagnose,defaults,scenario_set,ValidationError,valid_date,nu
 from .relations import METRICS,dashboard,reconcile
 from .peer_seed import AMD_PROFILE,AMD_DOC,AMD_DATA,CALCULATED,DIFFERENTIATION
 from .v3 import build_v3_view
+from .semantic import build_semantic_snapshot
 
 def now():return datetime.now(timezone.utc).isoformat()
 def encode(x):return json.dumps(x,ensure_ascii=False,allow_nan=False)
@@ -109,7 +110,9 @@ class Store:
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
         v3=build_v3_view(profile,diagnostics,periods,obs,docs,checks)
-        return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'v3':v3,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings 与 suggested questions 来自确定性规则。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        result={'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'v3':v3,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings 与 suggested questions 来自确定性规则。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        result['semantic']=build_semantic_snapshot(result)
+        return result
     def calculate(self,company,asof,params):
         s=self.state(company,asof)
         if not s['diagnostics']['years']:raise ValidationError('截至研究日期没有可用的年度输入')
@@ -128,6 +131,24 @@ class Store:
         inputs=list(chosen.values())
         result.update({'asof':asof,'input_ids':[o['id'] for o in inputs],'inputs':inputs,'documents':s['documents'],'review_pending':sum(not o['reviewed'] for o in inputs),'period':expected,'segments':c['segments']})
         return result
+    def import_starter_pack(self,pack):
+        profile=dict(pack.get('company') or {});ticker=str(profile.get('ticker','')).upper()
+        if not ticker or not pack.get('documents') or not pack.get('observations'):raise ValidationError('Starter Pack 缺少公司、来源或财务 observations')
+        with self.connect() as db:
+            if db.execute('SELECT 1 FROM companies WHERE id=?',(ticker,)).fetchone():raise ValidationError('该公司已存在；SEC Starter Pack 不自动覆盖既有研究档案')
+            db.execute('INSERT INTO companies VALUES(?,?)',(ticker,encode({k:v for k,v in profile.items() if k!='ticker'})))
+            known_docs=set()
+            for d in pack['documents']:
+                if d.get('company')!=ticker:raise ValidationError('Starter Pack document 公司不一致')
+                self._document(db,d);known_docs.add(d['id'])
+            imported=0
+            for o in pack['observations']:
+                if o.get('company')!=ticker or o.get('source_id') not in known_docs:raise ValidationError('Starter Pack observation 来源链无效')
+                if o.get('metric') not in METRICS:continue
+                db.execute('INSERT INTO observations(id,source_id,company,period,metric,content) VALUES(?,?,?,?,?,?)',(o['id'],o['source_id'],ticker,o['period'],o['metric'],encode(o)));imported+=1
+            self._audit(db,'starter_pack',ticker,f"SourceAdapter={pack.get('adapter')}；导入 {imported} 条财务 observations；全部待人工核验")
+        return {'ticker':ticker,'asof':pack.get('asof'),'adapter':pack.get('adapter'),'imported':imported,'coverage':pack.get('coverage',{}),'message':'SEC Starter Research Pack 已导入；所有 observations 仍为待人工核验。'}
+
     def save_record(self,company,kind,content):
         self.check_company(company);ident=identity()
         with self.connect() as db:
