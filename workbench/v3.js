@@ -24,10 +24,26 @@ function sourceCoverage(){
   return '<div class="source-summary"><span class="eyebrow">SOURCE COVERAGE</span><strong>'+fmt(c.documents)+'</strong><p>份当前研究时点可用资料</p><p>'+fmt(c.observations)+' observations · '+fmt(c.pending_review)+' 待人工核验</p></div>'
 }
 function chartHost(id,label){return '<div class="chart-canvas" id="'+id+'" role="img" aria-label="'+esc(label)+'"></div>'}
+function sceneTone(){
+  if(page==='research')return 'blue';
+  if(page==='evidence')return 'teal';
+  if(page==='report')return 'gold';
+  if(page==='analysis'){
+    return ({financials:'lavender',business:'green',peers:'mint',scenario:'gold'})[analysisTab]||'lavender';
+  }
+  return 'blue';
+}
 function setAmbient(){
-  // Visual System 1.0 keeps interface color neutral.
-  // Industry is analytical context, not a decorative color code.
+  // Fixed by product surface, never by company or industry.
   delete document.documentElement.dataset.ambient;
+  document.documentElement.dataset.tone=sceneTone();
+}
+function smoothRender(){
+  if(document.startViewTransition){
+    document.startViewTransition(()=>render());
+  }else{
+    render();
+  }
 }
 function plannerView(){
   const cap=sourceCapabilities.ai||{};
@@ -194,7 +210,7 @@ function renderReport(){
   '<section class="section">'+sectionHead('REVISION TIMELINE','研究判断如何变化','旧版本不覆盖；stale 表示新证据到来后需要复核。')+'<div class="timeline">'+(records.length?records.map(r=>'<article class="revision"><span class="eyebrow">'+esc(r.kind)+' · '+esc(r.created_at?.slice(0,10)||'')+'</span><h3>'+esc(r.content.question||r.content.title||r.content.reason||'保存的研究记录')+'</h3><p>'+esc(r.content.conclusion||r.content.change_reason||r.content.reason||'')+'</p><span class="signal">'+(r.stale?'review needed':'saved')+'</span></article>').join(''):'<div class="empty">暂无版本记录。</div>')+'</div></section>';
 }
 function render(){
-  if(!state)return;setNav();nextStep();
+  if(!state)return;setAmbient();setNav();nextStep();
   if(page==='research')renderResearch();
   if(page==='evidence')renderEvidence();
   if(page==='analysis')renderAnalysis();
@@ -264,8 +280,8 @@ async function init(){
   }catch(e){showError(e.message)}
 }
 document.addEventListener('click',async e=>{
-  const nav=e.target.closest('[data-page]');if(nav){page=nav.dataset.page;render();return}
-  const tab=e.target.closest('[data-tab]');if(tab){analysisTab=tab.dataset.tab;if(analysisTab==='peers'&&!peerResult)loadPeers();else render();return}
+  const nav=e.target.closest('[data-page]');if(nav){page=nav.dataset.page;smoothRender();return}
+  const tab=e.target.closest('[data-tab]');if(tab){analysisTab=tab.dataset.tab;setAmbient();if(analysisTab==='peers'&&!peerResult)loadPeers();else smoothRender();return}
   const a=e.target.closest('[data-action]');if(a){const f=state.v3.findings.find(x=>x.id===a.dataset.id);selectedFinding=f;
     if(a.dataset.action==='why'){const d=$('#detail-'+CSS.escape(f.id));d.hidden=!d.hidden}
     if(a.dataset.action==='evidence')openEvidence(f);
