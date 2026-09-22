@@ -79,6 +79,7 @@ class ResearchTests(unittest.TestCase):
         self.call('research-save',**base)
         with self.assertRaises(ValidationError):self.call('research-save',**{**base,'question':'Different question'})
         with self.assertRaises(ValidationError):self.call('research-save',**{**base,'counter_evidence_ids':['NVDA-FY2025-cfo']})
+        with self.assertRaises(ValidationError):self.call('research-save',**{**base,'supporting_evidence_ids':[],'counter_evidence_ids':[]})
         with self.assertRaises(ValidationError):self.call('research-save',**{**base,'source_ids':['nv-fy25'],'counter_evidence_ids':['NVDA-FY2025-receivables'],'supporting_evidence_ids':['AMD-FY2024-cfo']})
 
     def test_research_memory_respects_record_asof_and_keeps_all_time_history(self):

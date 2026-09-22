@@ -1,4 +1,4 @@
-# V3 Semantic Contract 3.4
+# V3 Semantic Contract 3.5
 
 Research Atlas V3 uses one shared vocabulary across ingestion, finance logic, UI and later AI tools.
 
@@ -76,9 +76,36 @@ Semantic Contract 3.4 closes the main projection gaps found during the implement
 - `research-save` can persist `question_id`, `supporting_evidence_ids` and `counter_evidence_ids`.
 - `driver-save` records survive projection into semantic Driver objects.
 - `Observation.depends_on` preserves calculated-value lineage.
-- manual extraction quote/review provenance survives in Observation metadata.
+- manual extraction quote/review provenance survives in the canonical `provenance` envelope (and legacy metadata remains readable).
 - Revision parent IDs use the semantic `revision:<record-id>` namespace.
 - `validate_snapshot()` rejects broken Driver / Claim / Revision / dependency references.
 - point-in-time research memory is based on the record's explicit research `asof`, while `revision_history_all_time` preserves the complete immutable audit trail.
 
 These changes strengthen the research substrate without migrating away from the existing SQLite persistence model.
+
+
+## 3.5 unified provenance
+
+Semantic Contract 3.5 gives evidence-bearing objects one canonical provenance envelope instead of requiring each UI surface to reconstruct lineage ad hoc.
+
+The common envelope may include:
+
+- `source_ids` and `primary_source_id`
+- `source_type` / `source_types`
+- `disclosed_at`
+- `locator`
+- `accession`
+- `parent_source_id`
+- `source_tag`
+- `quote`
+- `extraction_method`
+- `extraction_review_id`
+- `review_state`
+- `value_kind`
+- `formula`
+- `depends_on`
+- Claim-specific supporting / counter-evidence IDs
+
+The envelope is projected from existing Documents, Observations and research records; it does not invent missing source metadata. `validate_snapshot()` checks that provenance source references stay consistent with the object's source IDs.
+
+This is intentionally not a separate graph database or new persistence layer. It is a stable semantic boundary that the Evidence Drawer, Claim Workspace, exports and later retrieval systems can consume.

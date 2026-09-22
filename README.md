@@ -41,9 +41,10 @@ The user-facing information architecture stays small:
 
 - 60-second Company View
 - deterministic Financial Diagnostics
-- point-in-time Evidence Drawer
+- point-in-time Evidence Drawer with unified provenance envelope
 - metric-level Comparative Reasoning gate
 - question-first Scenario entry
+- Claim Workspace: Question → supporting evidence / counter-evidence → Claim → falsification trigger → immutable Revision
 - Research Memory / Revision Trail
 - V3 Semantic Contract with Company, Metric, Observation, Document, Segment, Product, Driver, ResearchQuestion, Claim and Revision
 - opt-in official SEC EDGAR SourceAdapter
@@ -65,7 +66,7 @@ Company
 
 The map distinguishes evidence-backed objects, research hypotheses and industry templates. Products without a verified Segment mapping stay explicitly `unlinked_segment`; the system does not guess.
 
-Semantic Contract 3.4 also adds `ContextEntity` for Customer, Competitor, Geography, Channel and Risk evidence.
+Semantic Contract 3.5 also adds `ContextEntity` for Customer, Competitor, Geography, Channel and Risk evidence.
 
 ### V3-8 — Industry Driver Modules
 
@@ -135,6 +136,7 @@ Research Atlas keeps these distinctions explicit:
 - supporting evidence vs counter-evidence
 - active Driver hypothesis vs superseded Driver revision
 - research-as-of memory vs all-time revision history
+- source metadata vs canonical provenance envelope
 
 The system does not treat a balanced accounting equation as evidence of business quality and does not turn an anomaly into an investment conclusion.
 
@@ -173,7 +175,7 @@ The adapter only uses fixed official SEC domains. Imported observations and fili
 
 | Path | Responsibility |
 |---|---|
-| `atlas/semantic.py` | Semantic Contract 3.4 |
+| `atlas/semantic.py` | Semantic Contract 3.5 + unified provenance |
 | `atlas/sources/` | SourceAdapter, SEC Company Facts and 10-K intake |
 | `atlas/company_map.py` | V3-7 Company / Product Map |
 | `atlas/industries.py` | V3-8 Industry Driver Modules |
@@ -184,7 +186,7 @@ The adapter only uses fixed official SEC domains. Imported observations and fili
 | `atlas/drivers.py` | deterministic hardware/software scenario mechanics |
 | `atlas/store.py` | SQLite persistence and point-in-time state |
 | `workbench/v3-index.html` | V3 shell |
-| `workbench/v3.js` | Research / Evidence / Analysis / Report interactions |
+| `workbench/v3.js` | Research / Evidence / Analysis / Claim Workspace / Report interactions |
 | `workbench/v3-charts.js` | Apache ECharts rendering layer |
 | `workbench/v3.css` | V3 visual system, color, motion and responsive interaction |
 
@@ -203,6 +205,7 @@ python -B tests/test_planner.py
 python -B tests/test_research.py
 python -B tests/test_workbench.py
 node --test tests/model.test.cjs
+npm run test:e2e
 ```
 
 ## Not claimed yet
@@ -229,6 +232,7 @@ Research Atlas studies architecture and interaction ideas from FinRobot, OpenBB,
 - [V3-8 Industry Driver Modules](docs/v3-industry-modules.md)
 - [V3-9 Visualization Grammar](docs/v3-visualization-grammar.md)
 - [V3-10 Optional AI Research Planner](docs/v3-ai-planner.md)
+- [Claim Workspace / Browser E2E / Provenance](docs/v3-claim-workspace.md)
 - [Security boundary](docs/security.md)
 - [V2.2 historical release notes](docs/v22-release.md)
 

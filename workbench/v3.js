@@ -2,7 +2,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(v,d=0)=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
-let token='',companies=[],sourceCapabilities={},state=null,page='research',analysisTab='financials',selectedFinding=null,peerResult=null,scenarioResult=null,plannerResult=null,serial=0;
+let token='',companies=[],sourceCapabilities={},state=null,page='research',analysisTab='financials',selectedFinding=null,selectedQuestionId=null,peerResult=null,scenarioResult=null,plannerResult=null,serial=0;
 const PAGE_ORDER=['research','evidence','analysis','report'];
 const TAB_ORDER=['financials','business','peers','scenario'];
 function directionBetween(order,from,to){const a=order.indexOf(from),b=order.indexOf(to);return b<a?'backward':'forward'}
@@ -45,7 +45,7 @@ async function openCompanyQuery(query=$('#companySearch').value.trim()){
   }catch(e){showError(e.message);$('#status').textContent='SEC Starter Pack 建立失败'}
 }
 function setNav(){
-  $('[data-page]').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
+  $$('[data-page]').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
 }
 function syncSlidingChrome(){
   requestAnimationFrame(()=>{
@@ -69,7 +69,21 @@ function stat(label,value,note){return '<div class="metric"><span>'+esc(label)+'
 function sectionHead(kicker,title,note){return '<div class="section-head"><div><span class="eyebrow">'+esc(kicker)+'</span><h2>'+esc(title)+'</h2></div><p>'+esc(note||'')+'</p></div>'}
 function sourceById(id){return state.documents.find(d=>d.id===id)}
 function obsById(id){return state.observations.find(o=>o.id===id)}
+function semanticObsById(id){return state.semantic?.observations?.find(o=>o.id===id)}
+function questionRecordById(id){return state.records.find(r=>r.kind==='question'&&r.id===id)}
+function claimsForQuestion(id){return (state.semantic?.claims||[]).filter(c=>c.question_id===id).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)))}
+function latestClaimForQuestion(id){return claimsForQuestion(id).at(-1)||null}
 function sourceIdsForFinding(f){return [...new Set((f.evidence_ids||[]).map(id=>obsById(id)?.source_id).filter(Boolean))]}
+function sourceIdsForEvidence(ids){return [...new Set(ids.map(id=>obsById(id)?.source_id).filter(Boolean))]}
+function provenanceLine(id){
+  const p=semanticObsById(id)?.provenance||{},d=sourceById(p.primary_source_id||obsById(id)?.source_id);
+  return [p.source_type||d?.source_type||'curated',p.disclosed_at||d?.disclosed_at,p.locator||d?.locator,p.source_tag].filter(Boolean).join(' · ')
+}
+function claimEvidenceRow(id,role,checked){
+  const o=obsById(id);if(!o)return '';
+  const p=semanticObsById(id)?.provenance||{};
+  return '<label class="claim-evidence-row" data-evidence-id="'+esc(id)+'"><input type="checkbox" name="'+role+'" value="'+esc(id)+'" '+(checked?'checked':'')+'><span><b>'+esc(o.label||o.metric)+' · '+esc(o.period)+'</b><small>'+fmt(o.value)+' '+esc(o.currency||'')+' '+esc(o.unit||'')+' · '+esc(p.review_state||(!o.reviewed?'pending_review':'reviewed'))+'</small><em>'+esc(provenanceLine(id)||'provenance unavailable')+'</em></span></label>'
+}
 function sourceCoverage(){
   const c=state.v3.source_coverage;
   return '<div class="source-summary"><span class="eyebrow">SOURCE COVERAGE</span><strong>'+fmt(c.documents)+'</strong><p>份当前研究时点可用资料</p><p>'+fmt(c.observations)+' observations · '+fmt(c.pending_review)+' 待人工核验</p></div>'
@@ -87,14 +101,12 @@ function smoothRender(direction='forward'){
   const token=++smoothRender.token;
   content.getAnimations().forEach(a=>a.cancel());
   content.style.pointerEvents='none';
-
   // The page stays spatially fixed. Only the selection pill/plate slides.
   // Content simply dissolves and resolves in place.
   const out=content.animate(
     [{opacity:1,filter:'blur(0px)'},{opacity:.14,filter:'blur(1px)'}],
     {duration:105,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'}
   );
-
   return out.finished.catch(()=>{}).then(()=>{
     if(token!==smoothRender.token)return;
     render();
@@ -107,8 +119,8 @@ function smoothRender(direction='forward'){
       if(token===smoothRender.token){
         content.style.pointerEvents='';
         content.style.opacity='';
-        content.style.filter='';
         content.style.transform='';
+        content.style.filter='';
       }
     })
   })
@@ -135,7 +147,7 @@ function renderCharts(){
 function nextStep(){
   const questions=state.records.filter(r=>r.kind==='question');
   let text='先阅读 3–5 条高信号 finding，选择一个问题深入。', action='查看第一条 finding', target='first-finding';
-  if(questions.length){text='你已经保存研究问题。下一步比较证据或形成阶段性判断。';action='进入 Analysis';target='analysis'}
+  if(questions.length){text='你已经保存研究问题。下一步把支持证据、反证与可推翻条件组织成阶段性判断。';action='进入 Claim Workspace';target='report'}
   if(state.review_pending>0 && page==='evidence'){text='有 '+state.review_pending+' 条指标仍待人工核验。基础勾稽只用于发现数据问题。';action='查看待审核来源';target='pending'}
   const box=$('#nextStep');box.hidden=false;box.innerHTML='<div><b>NEXT STEP</b><br><span>'+esc(text)+'</span></div><button data-next="'+target+'">'+esc(action)+' →</button>';
 }
@@ -257,7 +269,8 @@ function renderPeerResult(){
 }
 function renderPeers(){return sectionHead('COMPARATIVE REASONING','先判断能不能比，再解释为什么不同','Peer Comparison 不是排名表；blocked / qualified 状态必须先于图表。')+renderPeerResult()}
 function selectedQuestion(){
-  const qs=state.records.filter(r=>r.kind==='question');return qs[0]?.content?.question||selectedFinding?.question||null
+  const selected=questionRecordById(selectedQuestionId);
+  const qs=state.records.filter(r=>r.kind==='question');return selected?.content?.question||qs[0]?.content?.question||selectedFinding?.question||null
 }
 function renderScenario(){
   const q=selectedQuestion();
@@ -272,10 +285,39 @@ function renderScenario(){
 function renderAnalysis(){
   $('#content').innerHTML='<div class="page-intro"><div><span class="eyebrow">ANALYSIS</span><h1>发生了什么，为什么？</h1><p>这里把财务关系、业务机制、同行和情景放在一个研究上下文里。工具按问题触发，而不是全部摆在一级导航。</p></div>'+sourceCoverage()+'</div>'+analysisSubnav()+'<section class="section">'+({financials:renderFinancials,business:renderBusiness,peers:renderPeers,scenario:renderScenario}[analysisTab])()+'</section>';
 }
+function renderClaimWorkspace(question){
+  if(!question)return '<div class="empty"><h2>先建立一个 Research Question。</h2><p>Claim 必须挂在明确的问题上；没有 Question 时不创建孤立结论。</p></div>';
+  const qid=question.id,q=question.content||{},claims=claimsForQuestion(qid),latest=claims.at(-1)||null;
+  const support=new Set(latest?.supporting_evidence_ids||q.evidence_ids||[]);
+  const counter=new Set(latest?.counter_evidence_ids||[]);
+  const observations=[...state.observations].sort((a,b)=>String(b.period).localeCompare(String(a.period))||String(a.metric).localeCompare(String(b.metric))).slice(0,40);
+  const evidenceRows=observations.map(o=>'<div class="claim-evidence-pair">'+claimEvidenceRow(o.id,'supporting',support.has(o.id))+claimEvidenceRow(o.id,'counter',counter.has(o.id))+'</div>').join('');
+  const current=latest?'<article class="current-claim"><div><span class="eyebrow">CURRENT CLAIM · '+esc(latest.status)+'</span><h3>'+esc(latest.conclusion)+'</h3><p>'+esc(latest.alternative||'No alternative explanation recorded.')+'</p></div><dl><dt>Support</dt><dd>'+fmt(latest.supporting_evidence_ids.length)+' observations</dd><dt>Counter</dt><dd>'+fmt(latest.counter_evidence_ids.length)+' observations</dd><dt>Falsification trigger</dt><dd>'+esc(latest.change_trigger||'—')+'</dd></dl></article>':'<div class="claim-empty-state"><span class="eyebrow">NO CLAIM YET</span><h3>Question 已存在，但研究者尚未形成阶段性判断。</h3><p>先选 evidence，再写 claim；系统不会把 finding 自动升级为 conclusion。</p></div>';
+  return '<div class="claim-workspace" data-claim-workspace="'+esc(qid)+'">'+
+    '<header class="claim-workspace-head"><div><span class="eyebrow">CLAIM WORKSPACE</span><h2>'+esc(q.question)+'</h2><p>'+esc(q.reason||'')+'</p></div><span class="signal">'+esc(q.status||'open')+'</span></header>'+
+    current+
+    '<form id="claimForm" class="claim-form" data-question-id="'+esc(qid)+'">'+
+      '<input type="hidden" name="parent_id" value="'+esc(latest?.id||'')+'">'+
+      '<div class="claim-grid"><label><span>Current claim</span><textarea name="conclusion" rows="4" required placeholder="What do you currently believe, given the evidence?">'+esc(latest?.conclusion||'')+'</textarea></label>'+
+      '<label><span>Alternative explanation</span><textarea name="alternative" rows="4" required placeholder="What else could explain the same evidence?">'+esc(latest?.alternative||'')+'</textarea></label></div>'+
+      '<div class="claim-grid"><label><span>What would change my mind?</span><textarea name="next_evidence" rows="3" required placeholder="A concrete falsification trigger or next evidence.">'+esc(latest?.change_trigger||'')+'</textarea></label>'+
+      '<label><span>Revision reason</span><textarea name="change_reason" rows="3" required placeholder="'+(latest?'What changed since the previous claim?':'Why is this the initial claim?')+'"></textarea></label></div>'+
+      '<div class="claim-status-row"><label><span>Status</span><select name="status">'+['open','supported','challenged','withdrawn'].map(s=>'<option value="'+s+'" '+((latest?.status||'open')===s?'selected':'')+'>'+s+'</option>').join('')+'</select></label><p>Evidence can support or challenge a claim. The same observation cannot be both.</p></div>'+
+      '<div class="evidence-matrix-head"><div><span class="eyebrow">EVIDENCE MATRIX</span><h3>Support vs counter-evidence</h3></div><div class="matrix-legend"><span>Left = supporting</span><span>Right = counter</span></div></div>'+
+      '<div class="claim-evidence-list">'+evidenceRows+'</div>'+
+      '<div class="claim-submit"><p>'+(latest?'Saving creates a new immutable revision; the previous claim remains in history.':'Saving creates the first researcher-authored Claim for this Question.')+'</p><button class="primary-action" type="submit">Save claim revision →</button></div>'+
+    '</form>'+
+    (claims.length?'<div class="claim-history"><span class="eyebrow">CLAIM HISTORY</span>'+claims.slice().reverse().map((x,i)=>'<article><b>'+esc(x.status)+' · '+esc(x.created_at?.slice(0,10)||'')+'</b><p>'+esc(x.conclusion)+'</p><small>'+(i===0?'current':'prior revision')+'</small></article>').join('')+'</div>':'')+
+  '</div>'
+}
 function renderReport(){
   const records=state.records.filter(r=>['question','research','memo','driver','comparison'].includes(r.kind));
-  $('#content').innerHTML='<div class="page-intro"><div><span class="eyebrow">RESEARCH MEMORY</span><h1>我现在怎么看？</h1><p>Report 不是空白写作页。它汇集问题、证据、阶段性判断、模型和 revision，让“为什么改变判断”成为产品的一等对象。</p></div>'+sourceCoverage()+'</div>'+
-  '<section class="section">'+sectionHead('CURRENT RESEARCH THREADS','正在研究的问题','Question 可以先保存，结论必须由用户之后补充。')+'<div class="question-list">'+state.records.filter(r=>r.kind==='question').map(r=>'<div class="question"><b>'+esc(r.content.question)+'</b><span class="signal">'+esc(r.content.status||'open')+'</span></div>').join('')+'</div>'+(state.records.filter(r=>r.kind==='question').length?'':'<div class="empty">还没有保存研究问题。回到 Research，从一条 finding 开始。</div>')+'</section>'+
+  const questions=state.records.filter(r=>r.kind==='question');
+  if(questions.length&&!questions.some(q=>q.id===selectedQuestionId))selectedQuestionId=questions[0].id;
+  const selected=questionRecordById(selectedQuestionId);
+  $('#content').innerHTML='<div class="page-intro"><div><span class="eyebrow">RESEARCH MEMORY</span><h1>我现在怎么看？</h1><p>Report 现在以 Claim Workspace 为核心：Question → support / counter-evidence → Claim → falsification trigger → immutable Revision。</p></div>'+sourceCoverage()+'</div>'+
+  '<section class="section">'+sectionHead('CURRENT RESEARCH THREADS','选择一个问题进入 Claim Workspace','Question 可以先保存；Claim 必须显式引用证据与反证。')+'<div class="question-list">'+questions.map(r=>'<div class="question '+(r.id===selectedQuestionId?'is-selected':'')+'"><div><b>'+esc(r.content.question)+'</b><small>'+esc(r.content.reason||'')+'</small></div><span class="signal">'+esc(r.content.status||'open')+'</span><button data-open-claim="'+esc(r.id)+'">'+(r.id===selectedQuestionId?'Editing':'Open workspace')+' →</button></div>').join('')+'</div>'+(questions.length?'':'<div class="empty">还没有保存研究问题。回到 Research，从一条 finding 开始。</div>')+'</section>'+
+  '<section class="section">'+renderClaimWorkspace(selected)+'</section>'+
   '<section class="section">'+sectionHead('REVISION TIMELINE','研究判断如何变化','旧版本不覆盖；stale 表示新证据到来后需要复核。')+'<div class="timeline">'+(records.length?records.map(r=>'<article class="revision"><span class="eyebrow">'+esc(r.kind)+' · '+esc(r.created_at?.slice(0,10)||'')+'</span><h3>'+esc(r.content.question||r.content.title||r.content.reason||'保存的研究记录')+'</h3><p>'+esc(r.content.conclusion||r.content.change_reason||r.content.reason||'')+'</p><span class="signal">'+(r.stale?'review needed':'saved')+'</span></article>').join(''):'<div class="empty">暂无版本记录。</div>')+'</div></section>';
 }
 function render(){
@@ -290,7 +332,7 @@ function render(){
 function openEvidence(f){
   const ids=f?.evidence_ids||[];const obs=ids.map(obsById).filter(Boolean),sources=[...new Set(obs.map(o=>o.source_id))].map(sourceById).filter(Boolean);
   $('#drawerTitle').textContent=f?.title||'Evidence';
-  $('#drawerBody').innerHTML=(obs.length?obs.map(o=>{const d=sourceById(o.source_id);return '<article class="evidence-card"><span class="eyebrow">'+esc(o.kind)+' · '+(o.reviewed?'REVIEWED':'PENDING REVIEW')+'</span><h3>'+esc(o.label||o.metric)+'</h3><dl><dt>Value</dt><dd>'+fmt(o.value)+' '+esc(o.currency||'')+' '+esc(o.unit||'')+'</dd><dt>Period</dt><dd>'+esc(o.period)+' · '+esc(o.period_type||'')+'</dd><dt>Scope</dt><dd>'+esc(o.basis||'')+' · '+esc(o.scope||'')+'</dd><dt>Disclosed</dt><dd>'+esc(o.disclosed_at||d?.disclosed_at||'')+'</dd><dt>Source</dt><dd>'+esc(d?.title||o.source_id)+'</dd><dt>Locator</dt><dd>'+esc(d?.locator||'—')+'</dd></dl>'+(d?.url?'<a href="'+esc(d.url)+'" target="_blank" rel="noopener noreferrer">打开官方原文 ↗</a>':'')+'</article>'}).join(''):'<div class="empty">这条 finding 暂无结构化 evidence ID。</div>')+(sources.length?'<p style="font-size:10px;color:var(--muted)">当前仅展示已进入 Research Atlas 的来源，不自动补写缺失证据。</p>':'');
+  $('#drawerBody').innerHTML=(obs.length?obs.map(o=>{const d=sourceById(o.source_id),p=semanticObsById(o.id)?.provenance||{};return '<article class="evidence-card"><span class="eyebrow">'+esc(o.kind)+' · '+(o.reviewed?'REVIEWED':'PENDING REVIEW')+'</span><h3>'+esc(o.label||o.metric)+'</h3><dl><dt>Value</dt><dd>'+fmt(o.value)+' '+esc(o.currency||'')+' '+esc(o.unit||'')+'</dd><dt>Period</dt><dd>'+esc(o.period)+' · '+esc(o.period_type||'')+'</dd><dt>Scope</dt><dd>'+esc(o.basis||'')+' · '+esc(o.scope||'')+'</dd><dt>Source type</dt><dd>'+esc(p.source_type||d?.source_type||'curated')+'</dd><dt>Disclosed</dt><dd>'+esc(p.disclosed_at||o.disclosed_at||d?.disclosed_at||'')+'</dd><dt>Source</dt><dd>'+esc(d?.title||o.source_id)+'</dd><dt>Locator</dt><dd>'+esc(p.locator||d?.locator||'—')+'</dd><dt>Source tag</dt><dd>'+esc(p.source_tag||o.source_tag||'—')+'</dd><dt>Extraction</dt><dd>'+esc(p.extraction_method||p.extraction_review_id||'direct / curated')+'</dd></dl>'+(p.quote?'<blockquote class="provenance-quote">'+esc(p.quote)+'</blockquote>':'')+(d?.url?'<a href="'+esc(d.url)+'" target="_blank" rel="noopener noreferrer">打开官方原文 ↗</a>':'')+'</article>'}).join(''):'<div class="empty">这条 finding 暂无结构化 evidence ID。</div>')+(sources.length?'<p style="font-size:10px;color:var(--muted)">Provenance envelope 来自 Semantic Contract；缺失字段保持缺失，不自动补写。</p>':'');
   $('#evidenceDrawer').showModal();
 }
 function openSource(id){
@@ -301,7 +343,7 @@ function openSource(id){
 }
 async function saveQuestion(f){
   const source_ids=sourceIdsForFinding(f);if(!source_ids.length)return toast('这条问题还没有可保存的来源链');
-  try{await post('question-save',{question:f.question,reason:f.statement,finding_id:f.id,evidence_ids:f.evidence_ids,source_ids,status:'open'});toast('研究问题已保存');await load()}catch(e){showError(e.message)}
+  try{const r=await post('question-save',{question:f.question,reason:f.statement,finding_id:f.id,evidence_ids:f.evidence_ids,source_ids,status:'open'});selectedQuestionId=r.id;toast('研究问题已保存');await load()}catch(e){showError(e.message)}
 }
 async function loadPeers(options={}){
   const candidates=companies.filter(c=>c.ticker!==state.company.ticker&&c.industry===state.company.industry).slice(0,2);
@@ -318,7 +360,7 @@ async function runScenario(){
 async function startQuestion(q){
   const source_ids=state.documents.slice(0,Math.min(2,state.documents.length)).map(d=>d.id);
   if(!source_ids.length)return toast('没有可关联的来源');
-  try{await post('question-save',{question:q,reason:'用户从 60-second Company View 选择该问题。',finding_id:null,evidence_ids:[],source_ids,status:'open'});toast('研究问题已保存');await load()}catch(e){showError(e.message)}
+  try{const r=await post('question-save',{question:q,reason:'用户从 60-second Company View 选择该问题。',finding_id:null,evidence_ids:[],source_ids,status:'open'});selectedQuestionId=r.id;toast('研究问题已保存');await load()}catch(e){showError(e.message)}
 }
 async function runPlanner(){
   if(!sourceCapabilities.ai?.enabled)return toast('AI Research Planner 当前关闭');
@@ -329,8 +371,8 @@ async function savePlannerQuestion(index){
   const item=plannerResult?.items?.[index];if(!item)return;
   if(!(item.source_ids||[]).length)return toast('该 AI 建议没有可验证 source ID，暂不保存');
   try{
-    await post('question-save',{question:item.question,reason:'AI planner suggestion selected by user. '+(item.why_now||''),finding_id:null,evidence_ids:item.evidence_ids||[],source_ids:item.source_ids,status:'open'});
-    toast('AI 建议已作为 Research Question 保存；仍需人工判断');await load();
+    const r=await post('question-save',{question:item.question,reason:'AI planner suggestion selected by user. '+(item.why_now||''),finding_id:null,evidence_ids:item.evidence_ids||[],source_ids:item.source_ids,status:'open'});
+    selectedQuestionId=r.id;toast('AI 建议已作为 Research Question 保存；仍需人工判断');await load();
   }catch(e){showError(e.message)}
 }
 async function load(ticker){
@@ -368,6 +410,7 @@ document.addEventListener('click',async e=>{
     }
     if(a.dataset.action==='research')await saveQuestion(f);return}
   const q=e.target.closest('[data-question]');if(q){await startQuestion(state.v3.questions[Number(q.dataset.question)]);return}
+  const openClaim=e.target.closest('[data-open-claim]');if(openClaim){selectedQuestionId=openClaim.dataset.openClaim;render();return}
   const s=e.target.closest('[data-source]');if(s){openSource(s.dataset.source);return}
   if(e.target.closest('[data-load-peers]')){await loadPeers();return}
   if(e.target.closest('[data-run-scenario]')){await runScenario();return}
@@ -376,10 +419,34 @@ document.addEventListener('click',async e=>{
   const pq=e.target.closest('[data-plan-question]');if(pq){await savePlannerQuestion(Number(pq.dataset.planQuestion));return}
   const n=e.target.closest('[data-next]');if(n){
     if(n.dataset.next==='analysis'){const dir=directionBetween(PAGE_ORDER,page,'analysis');page='analysis';analysisTab='financials';smoothRender(dir)}
+    else if(n.dataset.next==='report'){const dir=directionBetween(PAGE_ORDER,page,'report');page='report';smoothRender(dir)}
     else if(n.dataset.next==='first-finding'){$('#findings')?.scrollIntoView({behavior:'smooth'})}
     else if(n.dataset.next==='pending'){document.querySelector('.source-list')?.scrollIntoView({behavior:'smooth'})}
     return
   }
+});
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='claimForm')return;
+  e.preventDefault();clearError();
+  const form=e.target,data=new FormData(form),question=questionRecordById(form.dataset.questionId);
+  if(!question)return showError('Research Question 不存在或已不在当前 as-of。');
+  const supporting=data.getAll('supporting'),counter=data.getAll('counter');
+  const overlap=supporting.filter(x=>counter.includes(x));
+  if(overlap.length)return showError('同一 observation 不能同时作为 supporting 与 counter-evidence。');
+  if(!supporting.length&&!counter.length)return showError('Claim 至少需要一条明确 evidence。');
+  const evidence=[...new Set([...supporting,...counter])],source_ids=sourceIdsForEvidence(evidence);
+  if(!source_ids.length)return showError('所选 evidence 没有可解析的来源链。');
+  const payload={
+    question:question.content.question,question_id:question.id,
+    conclusion:String(data.get('conclusion')||'').trim(),
+    alternative:String(data.get('alternative')||'').trim(),
+    next_evidence:String(data.get('next_evidence')||'').trim(),
+    change_reason:String(data.get('change_reason')||'').trim(),
+    status:String(data.get('status')||'open'),
+    supporting_evidence_ids:supporting,counter_evidence_ids:counter,source_ids
+  };
+  const parent=String(data.get('parent_id')||'').trim();if(parent)payload.parent_id=parent;
+  try{await post('research-save',payload);toast(parent?'Claim revision saved':'Initial claim saved');await load()}catch(err){showError(err.message)}
 });
 $('#companyToggle').addEventListener('click',()=>setCompanyMenu($('#companyMenu').hidden));
 $('#companySearch').addEventListener('focus',()=>setCompanyMenu(true));

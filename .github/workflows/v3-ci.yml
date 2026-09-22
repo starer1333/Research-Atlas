@@ -44,3 +44,20 @@ jobs:
         run: python -B tests/test_workbench.py
       - name: Legacy deterministic model tests
         run: node --test tests/model.test.cjs
+      - name: Install browser E2E dependencies
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Browser E2E — Claim Workspace / provenance
+        run: |
+          rm -f .runtime/e2e.sqlite3
+          python -B serve_atlas.py --db .runtime/e2e.sqlite3 > /tmp/atlas-e2e.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          ready=0
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8766/api/session >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then cat /tmp/atlas-e2e.log; exit 1; fi
+          npm run test:e2e
