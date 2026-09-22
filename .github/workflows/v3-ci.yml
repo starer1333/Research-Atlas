@@ -34,6 +34,10 @@ jobs:
         run: python -B tests/test_company_map.py
       - name: V3-8 industry driver modules
         run: python -B tests/test_industries.py
+      - name: V3-10 optional AI planner
+        run: python -B tests/test_planner.py
+      - name: V3 frontend syntax
+        run: node --check workbench/v3.js && node --check workbench/v3-charts.js
       - name: Existing research tests
         run: python -B tests/test_research.py
       - name: Existing workbench tests

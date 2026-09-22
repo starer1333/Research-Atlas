@@ -6,6 +6,7 @@ It converts existing point-in-time state into user-facing research signals.
 from .engine import ratio, rounded
 from .industries import build_industry_view
 from .company_map import build_company_map
+from .visualization import build_visualization_grammar
 
 def _growth(current, previous, key):
     if key not in current or key not in previous or previous.get(key) in (None, 0):
@@ -201,6 +202,7 @@ def build_v3_view(profile,diagnostics,periods,observations,documents,relations,s
               "、".join(business_models) if business_models else "待补充"))
     semantic_segments=profile.get("business_segments") or [s for s in profile.get("segments",[]) if s.get("semantic_role")!="consolidated_total"]
     industry=build_industry_view(profile,diagnostics,observations)
+    visualization_grammar=build_visualization_grammar(profile,diagnostics)
     company_map=build_company_map(semantic or {"company":{"id":profile.get("ticker","company"),"ticker":profile.get("ticker",""),"name":profile.get("name","Company"),"industry":profile.get("industry","unclassified"),"business_summary":profile.get("business_summary"),"business_source_ids":profile.get("business_source_ids",[]),"business_review_state":profile.get("business_review_state","unavailable")},"segments":[],"products":[],"context_entities":[],"drivers":[],"metrics":[]},industry)
     return {
         "summary":summary,
@@ -227,6 +229,7 @@ def build_v3_view(profile,diagnostics,periods,observations,documents,relations,s
             "coverage":coverage,
             "definition":"用于发现提取、映射、单位、期间或口径问题；通过勾稽不等于公司财务质量良好。",
         },
+        "visualization_grammar":visualization_grammar,
         "interaction_contract":["WHY","EVIDENCE","COMPARE","ADD_TO_RESEARCH"],
         "boundary":"System proposes; human decides. Calculated is not disclosed; candidate is not verified.",
     }
