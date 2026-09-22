@@ -12,6 +12,13 @@ def required(p,keys):
 def sources(state,ids):
     if not isinstance(ids,list) or not ids or not set(ids)<={d['id'] for d in state['documents']}:raise ValidationError('选择当前公司、当前研究时点可用的来源')
 
+def evidence(state,ids,label='evidence'):
+    if ids is None:ids=[]
+    if not isinstance(ids,list):raise ValidationError(label+' 必须是 evidence ID 列表')
+    visible={o['id'] for o in state['observations']}
+    if not set(ids)<=visible:raise ValidationError(label+' 引用了当前研究时点不可用的 evidence')
+    return list(dict.fromkeys(ids))
+
 def record(state,ident,kind):
     result=next((r for r in state['records'] if r['id']==ident and r['kind']==kind),None)
     if not result:raise ValidationError('该公司不存在指定研究版本')
@@ -47,9 +54,7 @@ def handle(store,route,p):
         return {'id':store.save_record(company,'business-note',result)}
     if route=='question-save':
         required(p,['question','reason']);sources(s,p.get('source_ids'))
-        evidence_ids=p.get('evidence_ids',[])
-        visible={o['id'] for o in s['observations']}
-        if not isinstance(evidence_ids,list) or not set(evidence_ids)<=visible:raise ValidationError('研究问题引用了当前研究时点不可用的 evidence')
+        evidence_ids=evidence(s,p.get('evidence_ids',[]),'研究问题 evidence')
         if p.get('status','open') not in ['open','investigating','answered','archived']:raise ValidationError('无效研究问题状态')
         result={k:p.get(k) for k in ['question','reason','finding_id','evidence_ids','source_ids','asof']}
         result['status']=p.get('status','open')
@@ -62,7 +67,17 @@ def handle(store,route,p):
         if parent:record(s,parent,'research')
         model_id=p.get('model_id')
         if model_id:record(s,model_id,'driver')
+        question_id=p.get('question_id')
+        if question_id:record(s,question_id,'question')
+        supporting=evidence(s,p.get('supporting_evidence_ids',p.get('evidence_ids',[])),'supporting evidence')
+        counter=evidence(s,p.get('counter_evidence_ids',[]),'counter evidence')
+        if set(supporting)&set(counter):raise ValidationError('同一 observation 不能同时作为支持证据与反证')
+        evidence_sources={o['source_id'] for o in s['observations'] if o['id'] in set(supporting+counter)}
+        if evidence_sources-set(p['source_ids']):raise ValidationError('Claim 的 source_ids 必须覆盖全部支持证据与反证来源')
         result={k:p.get(k) for k in ['question','conclusion','alternative','next_evidence','change_reason','source_ids','status','parent_id','model_id','asof']}
+        result.update(question_id=question_id,supporting_evidence_ids=supporting,counter_evidence_ids=counter)
+        # Keep the legacy key during the 3.x compatibility window.
+        result['evidence_ids']=supporting
         result['documents']=[d for d in s['documents'] if d['id'] in p['source_ids']]
         return {'id':store.save_record(company,'research',result)}
     if route=='extraction-draft':
