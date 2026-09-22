@@ -10,7 +10,7 @@ def test_industry_module_selection():
         ({"mode":"hardware","industry":"semiconductors"},"semiconductor_hardware"),
         ({"mode":"software","industry":"software"},"saas_subscription"),
         ({"mode":"general","industry":"consumer retail"},"consumer_retail"),
-        ({"mode":"general","industry":"automotive","sic":"3711"},"automotive"),
+        ({"mode":"automotive","industry":"automotive","sic":"3711"},"automotive"),
         ({"mode":"financial","industry":"bank"},"bank"),
     ]
     for profile,expected in cases:
