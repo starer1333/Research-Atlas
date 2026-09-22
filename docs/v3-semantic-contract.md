@@ -1,4 +1,4 @@
-# V3 Semantic Contract
+# V3 Semantic Contract 3.3
 
 Research Atlas V3 uses one shared vocabulary across ingestion, finance logic, UI and later AI tools.
 
@@ -8,7 +8,8 @@ Company
 │  └─ Observation ──> Metric
 ├─ Segment
 │  └─ Product
-│     └─ Driver ──> Metric
+├─ ContextEntity (Customer / Competitor / Geography / Channel / Risk)
+├─ Driver ──> Metric
 └─ ResearchQuestion
    └─ Claim
       └─ Revision
@@ -48,3 +49,16 @@ ResearchQuestion and Claim remain separate. Saving a question never implies a co
 V2 SQLite tables remain the persistence substrate. `build_semantic_snapshot(state)` projects them into V3 objects and validates references. This avoids a destructive database migration before the contracts are stable.
 
 Dedicated relational tables for Segment/Product/Driver/ResearchQuestion/Claim/Revision can follow after the contract survives real UI and SEC-ingestion usage.
+
+
+## V3-7 Company / Product Map
+
+`atlas/company_map.py` projects the semantic snapshot into a navigational research graph. It intentionally separates three states:
+
+1. **Evidence-linked semantic objects** — Company, Segment, Product and ContextEntity with source/review metadata.
+2. **Company-specific research hypotheses** — existing Driver records linked to evidence where available.
+3. **Industry templates** — operating Driver nodes from V3-8; these are explicitly `template`, not company facts.
+
+The map uses relational/JSON objects rather than a graph database. This keeps the MVP inspectable while preserving a future migration path if graph traversal becomes a real product requirement.
+
+`ContextEntity` supports `customer / competitor / geography / channel / risk`. V3-7 defines the contract and map behavior; automatic extraction of those entities remains incomplete.

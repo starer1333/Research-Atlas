@@ -69,7 +69,7 @@ class Store:
         if str(p.get('industry','')).strip().lower()=='financial':mode='financial'
         if mode not in ['general','hardware','software','consumer','healthcare','internet','financial']:raise ValidationError('未知分析模板')
         if currency not in ['USD','CNY','EUR','HKD','JPY','GBP'] or basis not in ['GAAP','IFRS','CAS'] or scope not in ['consolidated','parent']:raise ValidationError('币种、准则或报表口径无效')
-        profile={'name':name,'mode':mode,'currency':currency,'basis':basis,'scope':scope,'industry':str(p.get('industry','unclassified')).strip() or 'unclassified','business_models':[str(p.get('business_model','待补充'))],'subtitle':str(p.get('industry','待分类'))+' / '+str(p.get('business_model','待补充')),'question':str(p.get('question','增长、盈利和现金流是否相互支持？')),'segments':[],'business_segments':[],'products':[],'business_summary':None,'business_source_ids':[],'market':[],'unknowns':['请先导入带来源的财务数据。','行业分类与实际商业模式需要研究者确认。'],'operating_identity':p.get('operating_identity','with_other'),'periods':{},'tolerance':.01}
+        profile={'name':name,'mode':mode,'currency':currency,'basis':basis,'scope':scope,'industry':str(p.get('industry','unclassified')).strip() or 'unclassified','business_models':[str(p.get('business_model','待补充'))],'subtitle':str(p.get('industry','待分类'))+' / '+str(p.get('business_model','待补充')),'question':str(p.get('question','增长、盈利和现金流是否相互支持？')),'segments':[],'business_segments':[],'products':[],'context_entities':[],'business_summary':None,'business_source_ids':[],'market':[],'unknowns':['请先导入带来源的财务数据。','行业分类与实际商业模式需要研究者确认。'],'operating_identity':p.get('operating_identity','with_other'),'periods':{},'tolerance':.01}
         if profile['operating_identity'] not in ['with_other','gp_less_opex']:raise ValidationError('无效经营利润口径')
         with self.connect() as db:
             if db.execute('SELECT 1 FROM companies WHERE id=?',(ticker,)).fetchone():raise ValidationError('公司代码已存在；请直接选择该公司')
@@ -93,6 +93,7 @@ class Store:
         profile=self.profile(company);profile['segments']=[s for s in profile.get('segments',[]) if s.get('source') in visible_sources]
         profile['business_segments']=[s for s in profile.get('business_segments',[]) if set(s.get('source_ids',[]) or ([s.get('source')] if s.get('source') else [])) & visible_sources]
         profile['products']=[p for p in profile.get('products',[]) if set(p.get('source_ids',[]) or ([p.get('source')] if p.get('source') else [])) & visible_sources]
+        profile['context_entities']=[e for e in profile.get('context_entities',[]) if set(e.get('source_ids',[]) or ([e.get('source')] if e.get('source') else [])) & visible_sources]
         profile['business_source_ids']=[x for x in profile.get('business_source_ids',[]) if x in visible_sources]
         if profile.get('business_summary') and not profile['business_source_ids']:profile['business_summary']=None
         profile['market']=[m for m in profile.get('market',[]) if m.get('source') in visible_sources];diagnostics=diagnose(periods)
@@ -114,9 +115,9 @@ class Store:
         checks=dashboard(periods,profile,obs)
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
-        v3=build_v3_view(profile,diagnostics,periods,obs,docs,checks)
-        result={'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'v3':v3,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings 与 suggested questions 来自确定性规则。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        result={'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings、Industry Driver Modules 与 Company Map 来自确定性规则和显式模板。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
         result['semantic']=build_semantic_snapshot(result)
+        result['v3']=build_v3_view(profile,diagnostics,periods,obs,docs,checks,result['semantic'])
         return result
     def calculate(self,company,asof,params):
         s=self.state(company,asof)

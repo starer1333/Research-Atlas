@@ -95,3 +95,36 @@ The foundation branch does not pretend that the later V3 roadmap is complete.
 5. Optional LLM-assisted research planning on top of deterministic evidence contracts.
 
 The V3 rule remains: simple surface, deep logic.
+
+
+## V3-7 Company / Product Map
+
+Implemented in `atlas/company_map.py`.
+
+The user-facing path is:
+
+```
+Company
+→ Segment / Product
+→ Context
+→ Operating Driver
+→ Financial Outcome
+```
+
+Edges preserve state. An evidence-backed Segment/Product is not rendered as equivalent to an industry-template Driver. Product-to-Segment relationships are only shown as evidence-linked when `segment_id` is known; otherwise the Product stays attached to Company with an explicit `unlinked_segment` status.
+
+## V3-8 Industry Driver Modules
+
+Implemented in `atlas/industries.py` with deterministic module selection and five domain modules:
+
+- Semiconductor / Hardware
+- SaaS / Subscription
+- Consumer / Retail
+- Automotive
+- Bank / Financial Institution
+
+A General fallback remains available.
+
+Every driver declares its research question, linked financial metrics, operating KPIs to seek, source requirements and comparability policy. Module selection exposes the reason (mode / SIC / keyword), and all module drivers are marked `template` / `is_company_fact=False`.
+
+This layer tells the researcher **what to investigate**; it does not fabricate operating KPIs or automatically assert causality.

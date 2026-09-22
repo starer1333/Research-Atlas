@@ -4,6 +4,8 @@ This module does not call an LLM and does not mark evidence as verified.
 It converts existing point-in-time state into user-facing research signals.
 """
 from .engine import ratio, rounded
+from .industries import build_industry_view
+from .company_map import build_company_map
 
 def _growth(current, previous, key):
     if key not in current or key not in previous or previous.get(key) in (None, 0):
@@ -159,7 +161,7 @@ def build_findings(profile, diagnostics, observations):
     findings.sort(key=lambda x:(x["priority"]["total"],len(x["evidence_ids"])),reverse=True)
     return findings[:5]
 
-def build_v3_view(profile,diagnostics,periods,observations,documents,relations):
+def build_v3_view(profile,diagnostics,periods,observations,documents,relations,semantic=None):
     findings=build_findings(profile,diagnostics,observations)
     questions=[]
     for item in findings:
@@ -198,6 +200,8 @@ def build_v3_view(profile,diagnostics,periods,observations,documents,relations):
              (profile.get("name",profile.get("ticker","公司")),profile.get("industry","待分类"),
               "、".join(business_models) if business_models else "待补充"))
     semantic_segments=profile.get("business_segments") or [s for s in profile.get("segments",[]) if s.get("semantic_role")!="consolidated_total"]
+    industry=build_industry_view(profile,diagnostics,observations)
+    company_map=build_company_map(semantic or {"company":{"id":profile.get("ticker","company"),"ticker":profile.get("ticker",""),"name":profile.get("name","Company"),"industry":profile.get("industry","unclassified"),"business_summary":profile.get("business_summary"),"business_source_ids":profile.get("business_source_ids",[]),"business_review_state":profile.get("business_review_state","unavailable")},"segments":[],"products":[],"context_entities":[],"drivers":[],"metrics":[]},industry)
     return {
         "summary":summary,
         "business_map":{
@@ -212,6 +216,8 @@ def build_v3_view(profile,diagnostics,periods,observations,documents,relations):
             "products":profile.get("products",[]),
             "unknowns":profile.get("unknowns",[]),
         },
+        "industry_module":industry,
+        "company_map":company_map,
         "trajectory":trajectory,
         "findings":findings,
         "questions":questions,

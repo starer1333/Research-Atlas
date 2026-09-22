@@ -6,7 +6,7 @@ The contract intentionally stays relational; a graph database is not required.
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
-SCHEMA_VERSION="3.2"
+SCHEMA_VERSION="3.3"
 
 @dataclass(frozen=True)
 class Company:
@@ -95,6 +95,18 @@ class Product:
     locator:Optional[str]=None
     excerpt:Optional[str]=None
     extraction_method:Optional[str]=None
+    metadata:dict=field(default_factory=dict)
+
+@dataclass(frozen=True)
+class ContextEntity:
+    id:str
+    company_id:str
+    entity_type:str
+    name:str
+    source_ids:list=field(default_factory=list)
+    review_state:str="pending_review"
+    locator:Optional[str]=None
+    excerpt:Optional[str]=None
     metadata:dict=field(default_factory=dict)
 
 @dataclass(frozen=True)
@@ -230,6 +242,19 @@ def build_semantic_snapshot(state):
             review_state=p.get("review_state","pending_review"),locator=p.get("locator"),excerpt=p.get("excerpt"),
             extraction_method=p.get("extraction_method"),metadata={**p.get("metadata",{}),**{k:p[k] for k in ["confidence"] if p.get(k) is not None}},
         ))
+    context_entities=[]
+    allowed_context={"customer","competitor","geography","channel","risk"}
+    for i,e in enumerate(profile.get("context_entities",[])):
+        etype=str(e.get("entity_type","")).lower()
+        if etype not in allowed_context:
+            continue
+        eid=e.get("id") or f"{ticker}:context:{etype}:{_slug(e.get('name') or i)}"
+        context_entities.append(ContextEntity(
+            id=eid,company_id=ticker,entity_type=etype,name=e.get("name",eid),
+            source_ids=[x for x in (e.get("source_ids") or ([e.get("source")] if e.get("source") else [])) if x in document_ids],
+            review_state=e.get("review_state","pending_review"),locator=e.get("locator"),excerpt=e.get("excerpt"),
+            metadata={k:e[k] for k in ["confidence","relationship","scope"] if e.get(k) is not None},
+        ))
     drivers=[]
     for i,d in enumerate(profile.get("market",[])):
         drivers.append(Driver(
@@ -269,7 +294,7 @@ def build_semantic_snapshot(state):
         "schema_version":SCHEMA_VERSION,"company":asdict(company),
         "metrics":[asdict(x) for x in metrics],"documents":[asdict(x) for x in documents],
         "observations":[asdict(x) for x in observations],"segments":[asdict(x) for x in segments],
-        "products":[asdict(x) for x in products],"drivers":[asdict(x) for x in drivers],
+        "products":[asdict(x) for x in products],"context_entities":[asdict(x) for x in context_entities],"drivers":[asdict(x) for x in drivers],
         "research_questions":[asdict(x) for x in questions],"claims":[asdict(x) for x in claims],
         "revisions":[asdict(x) for x in revisions],
     }
@@ -292,10 +317,13 @@ def validate_snapshot(snapshot):
         if p["company_id"]!=company_id:issues.append(f"Product {p['id']} company mismatch")
         if p["segment_id"] and p["segment_id"] not in segments:issues.append(f"Product {p['id']} missing Segment")
         if set(p.get("source_ids",[]))-docs:issues.append(f"Product {p['id']} missing Document refs")
+    for e in snapshot.get("context_entities",[]):
+        if e["company_id"]!=company_id:issues.append(f"ContextEntity {e['id']} company mismatch")
+        if set(e.get("source_ids",[]))-docs:issues.append(f"ContextEntity {e['id']} missing Document refs")
     for q in snapshot["research_questions"]:
         if set(q["evidence_ids"])-observations:issues.append(f"ResearchQuestion {q['id']} missing Observation refs")
         if set(q["source_ids"])-docs:issues.append(f"ResearchQuestion {q['id']} missing Document refs")
     return {
         "ok":not issues,"issues":issues,
-        "object_counts":{k:len(snapshot[k]) for k in ["metrics","documents","observations","segments","products","drivers","research_questions","claims","revisions"]},
+        "object_counts":{k:len(snapshot[k]) for k in ["metrics","documents","observations","segments","products","context_entities","drivers","research_questions","claims","revisions"]},
     }
