@@ -291,7 +291,7 @@ class Store:
     def export(self,company,asof):
         s=self.state(company,asof);lines=[f"# Research Atlas / {company}",f"研究截至 {asof}；单位 {s['company']['currency']} million；{s['company']['basis']} / {s['company']['scope']}；研究记录，非投资建议。",'## 来源']
         lines += [f"- {d['title']} | {d['disclosed_at']} | {d['url']} | {d['locator']}" for d in s['documents']]
-        lines += ['## 财务诊断',json.dumps(s['diagnostics'],ensure_ascii=False,indent=2),'## 勾稽与输入',json.dumps(s['relations'],ensure_ascii=False,indent=2),json.dumps(s['observations'],ensure_ascii=False,indent=2),'## 研究记录（含操作时间；不代表全部在研究时点已存在）']
+        lines += ['## 财务诊断',json.dumps(s['diagnostics'],ensure_ascii=False,indent=2),'## 勾稽与输入',json.dumps(s['relations'],ensure_ascii=False,indent=2),json.dumps(s['observations'],ensure_ascii=False,indent=2),'## 研究记录（按显式研究 as-of 过滤；操作时间仅供审计）']
         for r in s['records']:lines += [f"### {r['kind']} / {r['created_at']} / 待复核={bool(r['stale'])}",json.dumps(r['content'],ensure_ascii=False,indent=2)]
         lines += ['## 限制','数据由 AI 辅助录入并保留用户审核状态。当前模型为简化经营预测，默认参数是研究练习假设，未完成完整三表、同行和市场规模覆盖。']
         return '\\n\\n'.join(lines)
