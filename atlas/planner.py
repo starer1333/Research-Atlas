@@ -10,6 +10,7 @@ import ipaddress
 import json
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 
 class PlannerError(ValueError):
@@ -197,8 +198,13 @@ class ResearchPlanner:
 
     def _http_transport(self, url, headers, body, timeout):
         request = Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), headers=headers, method="POST")
-        with urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            raise PlannerError("AI planner provider returned HTTP %s" % exc.code) from exc
+        except (URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise PlannerError("AI planner request failed or returned invalid JSON") from exc
 
     def plan(self, state, focus=None):
         context = build_grounded_context(state, focus)
