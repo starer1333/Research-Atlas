@@ -60,12 +60,12 @@ function segments(){
   if(!seg.length)return '<div class="empty">当前档案没有可验证的业务分部候选；不会用推测补齐。</div>';
   const numeric=seg.some(s=>s.value!=null);
   if(numeric)return '<div class="segment-list">'+seg.map(s=>{const pct=revenue?Math.max(0,(s.value||0)/revenue*100):0;return '<div class="segment-row"><div class="segment-name"><span>'+esc(s.name)+'</span><b>'+fmt(s.value)+' · '+fmt(pct,1)+'%</b></div><div class="segment-track"><div class="segment-fill" style="width:'+Math.min(100,pct)+'%"></div></div></div>'}).join('')+'</div>';
-  return '<div class="source-list">'+seg.map(s=>'<div class="source-item"><div><h3>'+esc(s.name)+'</h3><p>'+esc(s.review_state||'pending_review')+' · '+esc(s.locator||'10-K business text')+'</p></div>'+(s.source?'<button data-source="'+esc(s.source)+'">Evidence</button>':'')+'</div>').join('')+'</div>'
+  return '<div class="source-list">'+seg.map(s=>'<div class="source-item"><div><h3>'+esc(s.name)+'</h3><p>'+esc(s.review_state||'pending_review')+' · '+esc(s.locator||'10-K business text')+'</p>'+(s.excerpt?'<p style="margin-top:5px;font-size:10px;color:var(--muted)">'+esc(s.excerpt)+'</p>':'')+'</div>'+(s.source?'<button data-source="'+esc(s.source)+'">Evidence</button>':'')+'</div>').join('')+'</div>'
 }
 function products(){
   const rows=state.v3.business_map.products||[];
   if(!rows.length)return '<div class="empty">没有从 10-K Item 1 明确列表中提取到 Product / Platform / Service 候选。</div>';
-  return '<div class="source-list">'+rows.map(p=>'<div class="source-item"><div><h3>'+esc(p.name)+'</h3><p>'+esc(p.category||'Product candidate')+' · '+esc(p.review_state||'pending_review')+'</p></div>'+((p.source_ids||[])[0]?'<button data-source="'+esc(p.source_ids[0])+'">Evidence</button>':'')+'</div>').join('')+'</div>'
+  return '<div class="source-list">'+rows.map(p=>'<div class="source-item"><div><h3>'+esc(p.name)+'</h3><p>'+esc(p.category||'Product candidate')+' · '+esc(p.review_state||'pending_review')+'</p>'+(p.excerpt?'<p style="margin-top:5px;font-size:10px;color:var(--muted)">'+esc(p.excerpt)+'</p>':'')+'</div>'+((p.source_ids||[])[0]?'<button data-source="'+esc(p.source_ids[0])+'">Evidence</button>':'')+'</div>').join('')+'</div>'
 }
 function insightCard(f){
   const detail='<div class="insight-detail" id="detail-'+esc(f.id)+'" hidden><div><span class="eyebrow">WHY THIS MATTERS</span><p>'+esc(f.why)+'</p><p style="margin-top:8px;font-size:10px">Priority '+fmt(f.priority.total)+' = materiality '+fmt(f.priority.materiality)+' + divergence '+fmt(f.priority.divergence)+' + industry '+fmt(f.priority.industry_relevance)+' + evidence '+fmt(f.priority.evidence_quality)+' − gap '+fmt(f.priority.data_gap_penalty)+'</p></div><div><span class="eyebrow">POSSIBLE MECHANISMS</span><ul>'+f.possible_mechanisms.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div>';
