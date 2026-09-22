@@ -140,6 +140,7 @@ class ResearchQuestion:
     created_at:str
     reason:Optional[str]=None
     parent_id:Optional[str]=None
+    provenance:dict=field(default_factory=dict)
     metadata:dict=field(default_factory=dict)
 
 @dataclass(frozen=True)
@@ -168,6 +169,7 @@ class Revision:
     change_reason:str
     parent_revision_id:Optional[str]=None
     source_ids:list=field(default_factory=list)
+    provenance:dict=field(default_factory=dict)
     metadata:dict=field(default_factory=dict)
 
 STATEMENTS={
@@ -359,7 +361,11 @@ def build_semantic_snapshot(state):
             questions.append(ResearchQuestion(
                 id=rid,company_id=ticker,question=c.get("question",""),status=c.get("status","open"),
                 evidence_ids=list(c.get("evidence_ids",[])),source_ids=list(c.get("source_ids",[])),created_at=created,
-                reason=c.get("reason"),parent_id=c.get("parent_id"),metadata={"finding_id":c.get("finding_id")},
+                reason=c.get("reason"),parent_id=c.get("parent_id"),
+                provenance=_provenance(list(c.get("source_ids",[])),documents,
+                    review_state="researcher_selected",value_kind="research_question",
+                    evidence_ids=list(c.get("evidence_ids",[]))),
+                metadata={"finding_id":c.get("finding_id")},
             ))
         elif kind in ("research","thesis"):
             supporting=list(c.get("supporting_evidence_ids",c.get("evidence_ids",[])))
@@ -383,6 +389,8 @@ def build_semantic_snapshot(state):
                 created_at=created,change_reason=str(change or "New version"),
                 parent_revision_id=f"revision:{parent}" if parent else None,
                 source_ids=list(c.get("source_ids",[])),
+                provenance=_provenance(list(c.get("source_ids",[])),documents,
+                    review_state="researcher_authored",value_kind="revision"),
             ))
     snapshot={
         "schema_version":SCHEMA_VERSION,"company":asdict(company),
@@ -447,6 +455,7 @@ def validate_snapshot(snapshot):
         if q["company_id"]!=company_id:issues.append(f"ResearchQuestion {q['id']} company mismatch")
         if set(q["evidence_ids"])-observations:issues.append(f"ResearchQuestion {q['id']} missing Observation refs")
         if set(q["source_ids"])-docs:issues.append(f"ResearchQuestion {q['id']} missing Document refs")
+        if provenance_sources(q)!=set(q.get("source_ids",[])):issues.append(f"ResearchQuestion {q['id']} provenance/source_ids mismatch")
         evidence_docs={observation_docs[x] for x in q["evidence_ids"] if x in observation_docs}
         if evidence_docs-set(q["source_ids"]):issues.append(f"ResearchQuestion {q['id']} source_ids do not cover evidence")
         if q.get("parent_id") and q["parent_id"] not in questions:issues.append(f"ResearchQuestion {q['id']} missing parent Question")
@@ -469,6 +478,7 @@ def validate_snapshot(snapshot):
         if rev["object_id"] not in revisionable:issues.append(f"Revision {rev['id']} missing revised object")
         if rev.get("parent_revision_id") and rev["parent_revision_id"] not in revisions:issues.append(f"Revision {rev['id']} missing parent Revision")
         if set(rev.get("source_ids",[]))-docs:issues.append(f"Revision {rev['id']} missing Document refs")
+        if provenance_sources(rev)!=set(rev.get("source_ids",[])):issues.append(f"Revision {rev['id']} provenance/source_ids mismatch")
 
     return {
         "ok":not issues,"issues":issues,
