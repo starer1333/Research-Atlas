@@ -71,6 +71,7 @@ LLM interpretation != fact.
 - question-save route so a question can be persisted before a conclusion exists.
 - V3 Semantic Contract: Company / Metric / Observation / Document / Segment / Product / Driver / ResearchQuestion / Claim / Revision.
 - Opt-in direct SEC EDGAR SourceAdapter and Automatic Starter Research Pack for new U.S. tickers.
+- V3-6 deterministic latest-10-K Item 1 parser with source-linked Business excerpt and pending-review Segment/Product candidates.
 
 ## Not implemented yet
 
@@ -88,7 +89,7 @@ The foundation branch does not pretend that the later V3 roadmap is complete.
 ## Next engineering slices
 
 1. Stabilize the Semantic Contract under real SEC Starter Pack imports; then decide dedicated-table migration.
-2. Add filing-text parsing for Business / Segment / Product descriptions (HTML/Docling) while preserving provenance.
+2. Extend filing-text coverage beyond Item 1 into note-level segment disclosures and richer HTML/Docling parsing while preserving provenance.
 3. ECharts visualization layer and chart-data contract.
 4. Semiconductor / SaaS / Consumer / Automotive / Bank industry modules.
 5. Optional LLM-assisted research planning on top of deterministic evidence contracts.
