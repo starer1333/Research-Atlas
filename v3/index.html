@@ -3,12 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f5f7">
 <meta name="description" content="Research Atlas V3 UI preview — guided company research workbench.">
 <title>Research Atlas V3 · UI Preview</title>
 <link rel="stylesheet" href="style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+<script defer src="charts.js"></script>
 <script defer src="app.js"></script>
 </head>
-<body>
+<body><div class="ambient-orb ambient-a" aria-hidden="true"></div><div class="ambient-orb ambient-b" aria-hidden="true"></div>
 <aside class="rail">
   <a class="brand" href="#research"><span class="mark">RA</span><span><b>Research Atlas</b><small>Evidence before conviction</small></span></a>
   <div class="picker"><label for="company">Company / Ticker</label><select id="company"></select><p>公开静态预览 · 不写入研究数据库</p></div>
@@ -18,11 +22,11 @@
     <button data-page="analysis"><span>03</span><b>Analysis</b><small>发生了什么，为什么？</small></button>
     <button data-page="report"><span>04</span><b>Report</b><small>我现在怎么看？</small></button>
   </nav>
-  <div class="rail-foot"><span>V3 UI PREVIEW</span><p>Surface simple · logic deep</p><a href="../">打开旧版公开演示 ↗</a></div>
+  <div class="rail-foot"><span>V3 · 9/10</span><p>ECharts grammar · optional AI planner</p><a href="../">打开旧版公开演示 ↗</a></div>
 </aside>
 <div class="app">
 <header class="topbar"><div><b id="ticker">—</b><span id="companyName">Research Atlas</span><small id="subtitle"></small></div><span>As of 2025-03-01</span></header>
-<main><div class="notice">这是 V3 UI 静态预览。主分支已包含 V3-7 Company / Product Map 与 V3-8 Industry Driver Modules；GitHub Pages 不发起 SEC 请求，因此不会伪造 live 10-K 语义对象。PDF/Docling 与外部 AI 仍未接入。</div><div id="content"></div></main>
+<main><div class="notice">这是 V3 公开静态预览。主分支已完成 V3-9 ECharts Visualization Grammar 与 V3-10 Optional AI Research Planner。Pages 只展示研究界面与静态数据，不发起 SEC / AI 请求；AI planner 在本地 runtime 中默认关闭。</div><div id="content"></div></main>
 <footer><span>Research Atlas V3</span><span>公开披露 · 可复核计算 · 可检验判断</span></footer>
 </div>
 <dialog id="drawer"><div class="drawer-head"><div><small>EVIDENCE</small><h2 id="drawerTitle">来源</h2></div><button id="close">×</button></div><div id="drawerBody"></div></dialog>
