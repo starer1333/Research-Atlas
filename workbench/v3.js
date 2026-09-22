@@ -11,6 +11,36 @@ function clearError(){$('#error').hidden=true}
 async function getJson(url){const r=await fetch(url);const d=await r.json();if(!r.ok)throw new Error(d.error||'读取失败');return d}
 async function post(route,payload){const r=await fetch('/api/'+route,{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Token':token},body:JSON.stringify({...context(),...payload})});const d=await r.json();if(!r.ok)throw new Error(d.error||'操作失败');return d}
 function resolveCompany(q){q=String(q||'').trim().toLowerCase();return companies.find(c=>c.ticker.toLowerCase()===q||c.name.toLowerCase()===q||c.name.toLowerCase().includes(q))}
+function renderCompanyMenu(filter=''){
+  const menu=$('#companyMenu');if(!menu)return;
+  const q=String(filter||'').trim().toLowerCase();
+  const rows=companies.filter(company=>!q||company.ticker.toLowerCase().includes(q)||company.name.toLowerCase().includes(q)).slice(0,12);
+  menu.innerHTML=rows.length?rows.map(company=>'<button type="button" class="combo-option" role="option" data-company-option="'+esc(company.ticker)+'" aria-selected="'+(state?.company?.ticker===company.ticker?'true':'false')+'"><span>'+esc(company.ticker)+'</span><small>'+esc(company.name)+'</small></button>').join(''):'<div class="combo-option" aria-disabled="true"><span>没有匹配项</span><small>按 Enter 可尝试 SEC ticker</small></div>';
+}
+function setCompanyMenu(open){
+  const box=$('#companyCombobox'),menu=$('#companyMenu'),input=$('#companySearch'),toggle=$('#companyToggle');
+  if(!box||!menu)return;
+  box.dataset.open=open?'true':'false';menu.hidden=!open;
+  input?.setAttribute('aria-expanded',open?'true':'false');toggle?.setAttribute('aria-expanded',open?'true':'false');
+  if(open)renderCompanyMenu(input?.value||'');
+}
+async function openCompanyQuery(query=$('#companySearch').value.trim()){
+  const existing=resolveCompany(query);
+  if(existing){setCompanyMenu(false);await load(existing.ticker);return}
+  if(!query)return;
+  if(!sourceCapabilities.sec?.enabled){
+    showError('当前未启用 SEC SourceAdapter。设置 ATLAS_SEC_USER_AGENT 并用 --enable-sec 启动后，可直接输入美国上市公司 ticker。');
+    return;
+  }
+  clearError();setCompanyMenu(false);$('#status').textContent='SEC EDGAR：正在解析公司、filings 与 Company Facts…';
+  try{
+    const result=await post('sec-starter-pack',{query});
+    const list=await getJson('/api/companies');companies=list.companies||companies;renderCompanyMenu('');
+    if(result.asof)$('#asof').value=result.asof;
+    toast('Starter Research Pack 已建立；财务 observations 待人工核验');
+    await load(result.ticker);
+  }catch(e){showError(e.message);$('#status').textContent='SEC Starter Pack 建立失败'}
+}
 function setNav(){
   $$('[data-page]').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
 }
@@ -24,19 +54,10 @@ function sourceCoverage(){
   return '<div class="source-summary"><span class="eyebrow">SOURCE COVERAGE</span><strong>'+fmt(c.documents)+'</strong><p>份当前研究时点可用资料</p><p>'+fmt(c.observations)+' observations · '+fmt(c.pending_review)+' 待人工核验</p></div>'
 }
 function chartHost(id,label){return '<div class="chart-canvas" id="'+id+'" role="img" aria-label="'+esc(label)+'"></div>'}
-function sceneTone(){
-  if(page==='research')return 'blue';
-  if(page==='evidence')return 'teal';
-  if(page==='report')return 'gold';
-  if(page==='analysis'){
-    return ({financials:'lavender',business:'green',peers:'mint',scenario:'gold'})[analysisTab]||'lavender';
-  }
-  return 'blue';
-}
 function setAmbient(){
-  // Fixed by product surface, never by company or industry.
+  // UI Freeze: one fixed blue theme across the entire V3 app.
   delete document.documentElement.dataset.ambient;
-  document.documentElement.dataset.tone=sceneTone();
+  delete document.documentElement.dataset.tone;
 }
 function smoothRender(){
   if(document.startViewTransition){
@@ -274,7 +295,7 @@ async function load(ticker){
 async function init(){
   try{
     const session=await getJson('/api/session');token=session.token;companies=session.companies||[];sourceCapabilities=session.sources||{};
-    $('#companyList').innerHTML=companies.map(c=>'<option value="'+esc(c.ticker)+'">'+esc(c.name)+'</option>').join('');
+    renderCompanyMenu('');
     $('#companyHint').textContent=sourceCapabilities.sec?.enabled?'可输入已有公司，或输入新的美国上市公司 ticker，由 SEC EDGAR 建立 Starter Research Pack。':'当前使用本地资料；设置 ATLAS_SEC_USER_AGENT 并以 --enable-sec 启动后，可直接从 SEC 建立 Starter Research Pack。';
     await load(companies.find(c=>c.ticker==='NVDA')?.ticker||companies[0]?.ticker||'NVDA')
   }catch(e){showError(e.message)}
@@ -296,10 +317,35 @@ document.addEventListener('click',async e=>{
   const pq=e.target.closest('[data-plan-question]');if(pq){await savePlannerQuestion(Number(pq.dataset.planQuestion));return}
   const n=e.target.closest('[data-next]');if(n){if(n.dataset.next==='analysis'){page='analysis';analysisTab='financials';render()}else if(n.dataset.next==='first-finding'){$('#findings')?.scrollIntoView({behavior:'smooth'})}else if(n.dataset.next==='pending'){document.querySelector('.source-list')?.scrollIntoView({behavior:'smooth'})}return}
 });
-$('#openCompany').addEventListener('click',async()=>{const query=$('#companySearch').value.trim(),c=resolveCompany(query);if(c){await load(c.ticker);return}if(!sourceCapabilities.sec?.enabled){showError('当前未启用 SEC SourceAdapter。设置 ATLAS_SEC_USER_AGENT 并用 --enable-sec 启动后，可直接输入美国上市公司 ticker。');return}clearError();$('#status').textContent='SEC EDGAR：正在解析公司、filings 与 Company Facts…';try{const result=await post('sec-starter-pack',{query});const list=await getJson('/api/companies');companies=list.companies||companies;$('#companyList').innerHTML=companies.map(x=>'<option value="'+esc(x.ticker)+'">'+esc(x.name)+'</option>').join('');if(result.asof)$('#asof').value=result.asof;toast('Starter Research Pack 已建立；财务 observations 待人工核验');await load(result.ticker)}catch(e){showError(e.message);$('#status').textContent='SEC Starter Pack 建立失败'}});
-$('#companySearch').addEventListener('keydown',e=>{if(e.key==='Enter')$('#openCompany').click()});
+$('#companyToggle').addEventListener('click',()=>setCompanyMenu($('#companyMenu').hidden));
+$('#companySearch').addEventListener('focus',()=>setCompanyMenu(true));
+$('#companySearch').addEventListener('input',()=>{renderCompanyMenu($('#companySearch').value);setCompanyMenu(true)});
+$('#companySearch').addEventListener('keydown',async e=>{
+  if(e.key==='Enter'){e.preventDefault();await openCompanyQuery()}
+  if(e.key==='Escape'){setCompanyMenu(false);$('#companySearch').blur()}
+  if(e.key==='ArrowDown'){
+    e.preventDefault();setCompanyMenu(true);
+    $('#companyMenu .combo-option:not([aria-disabled="true"])')?.focus();
+  }
+});
+$('#companyMenu').addEventListener('click',async e=>{
+  const option=e.target.closest('[data-company-option]');if(!option)return;
+  $('#companySearch').value=option.dataset.companyOption;setCompanyMenu(false);await load(option.dataset.companyOption);
+});
+$('#companyMenu').addEventListener('keydown',async e=>{
+  const options=[...$('#companyMenu').querySelectorAll('[data-company-option]')],current=options.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'){e.preventDefault();options[Math.min(options.length-1,current+1)]?.focus()}
+  if(e.key==='ArrowUp'){e.preventDefault();(current<=0?$('#companySearch'):options[current-1])?.focus()}
+  if(e.key==='Enter'&&document.activeElement?.dataset?.companyOption){e.preventDefault();const ticker=document.activeElement.dataset.companyOption;$('#companySearch').value=ticker;setCompanyMenu(false);await load(ticker)}
+  if(e.key==='Escape'){setCompanyMenu(false);$('#companySearch').focus()}
+});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#companyCombobox'))setCompanyMenu(false)});
 $('#asof').addEventListener('change',()=>load(context().company));
 $('#closeDrawer').addEventListener('click',()=>$('#evidenceDrawer').close());
+$('#evidenceDrawer').addEventListener('click',e=>{
+  const d=$('#evidenceDrawer'),r=d.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();
+});
 $('#exportButton').addEventListener('click',async()=>{try{const r=await post('export-file',{});toast('研究包已保存：'+r.filename)}catch(e){showError(e.message)}});
 window.addEventListener('resize',()=>window.AtlasCharts?.resizeAll());
 init();
