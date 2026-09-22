@@ -25,14 +25,9 @@ function sourceCoverage(){
 }
 function chartHost(id,label){return '<div class="chart-canvas" id="'+id+'" role="img" aria-label="'+esc(label)+'"></div>'}
 function setAmbient(){
-  const key=((state?.company?.industry||'')+' '+(state?.company?.mode||'')).toLowerCase();
-  let ambient='blue';
-  if(/software|saas|subscription/.test(key))ambient='violet';
-  else if(/semiconductor|hardware|chip/.test(key))ambient='indigo';
-  else if(/consumer|retail/.test(key))ambient='warm';
-  else if(/automotive|vehicle/.test(key))ambient='teal';
-  else if(/bank|financial/.test(key))ambient='green';
-  document.documentElement.dataset.ambient=ambient;
+  // Visual System 1.0 keeps interface color neutral.
+  // Industry is analytical context, not a decorative color code.
+  delete document.documentElement.dataset.ambient;
 }
 function plannerView(){
   const cap=sourceCapabilities.ai||{};
@@ -121,13 +116,21 @@ function insightCard(f){
 }
 function renderResearch(){
   const v=state.v3,t=v.trajectory.at(-1)||{},r=state.diagnostics.ratios||{};
-  $('#content').innerHTML='<div class="page-intro"><div><span class="eyebrow">60-SECOND COMPANY VIEW</span><h1>'+esc(state.company.name)+'</h1><p>'+esc(v.summary)+' 当前研究视图只使用截至 '+esc(state.asof)+' 已披露的数据；系统先提出问题，再由研究者形成判断。</p></div>'+sourceCoverage()+'</div>'+
+  const businessContext=
+    '<details class="context-disclosure"><summary>展开 Company / Product Map 与行业研究模板</summary><div class="context-body">'+
+      '<div>'+companyMapView()+'</div>'+
+      '<div class="grid-2" style="margin-top:28px"><div class="paper">'+segments()+'</div><div class="paper"><span class="eyebrow">Industry module</span><h3 style="font-size:17px;font-weight:650;letter-spacing:-.02em;margin:6px 0 8px">'+esc(v.industry_module?.label||'General company')+'</h3><p style="font-size:10px;color:var(--muted);line-height:1.6;margin:0">'+esc(v.industry_module?.description||'')+'</p><span class="eyebrow" style="margin-top:18px">Known gaps</span><ul style="font-size:10px;color:var(--muted);line-height:1.65;padding-left:17px">'+(v.business_map.unknowns||[]).slice(0,4).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div>'+
+    '</div></details>';
+  const aiContext='<details class="context-disclosure"><summary>打开 Optional AI Research Planner</summary><div class="context-body">'+plannerView()+'</div></details>';
+
+  $('#content').innerHTML=
+  '<div class="page-intro"><div><span class="eyebrow">60-second company view</span><h1>'+esc(state.company.name)+'</h1><p>'+esc(v.summary)+' 当前研究视图只使用截至 '+esc(state.asof)+' 已披露的数据；系统先提出问题，再由研究者形成判断。</p></div>'+sourceCoverage()+'</div>'+
   '<div class="metrics-row">'+stat('Revenue',fmt(t.revenue),t.period||'')+stat('Revenue growth',r.revenue_growth==null?'—':fmt(r.revenue_growth,1)+'%','YoY')+stat('Operating margin',r.op_margin==null?'—':fmt(r.op_margin,1)+'%','GAAP')+stat('Cash conversion',r.cash_conversion==null?'—':fmt(r.cash_conversion,1)+'%','CFO / Net income')+'</div>'+
-  '<section class="section">'+sectionHead('FINANCIAL TRAJECTORY','先看趋势，再决定往哪里钻','收入、利润率和现金的变化只负责提出研究问题，不自动给公司打分。')+'<div class="grid-2"><div class="paper chart-card"><div class="chart-title"><h3>Revenue × Operating Margin</h3><span>Trend</span></div>'+chartHost('chart-trajectory','Revenue and operating margin trend')+'</div><div class="paper chart-card"><div class="chart-title"><h3>Cash & Working Capital</h3><span>Relationship</span></div>'+chartHost('chart-working-capital','CFO receivables and inventory trend')+'</div></div></section>'+
-  '<section class="section">'+sectionHead('BUSINESS MAP','这家公司靠什么赚钱','V3-7 把 Company / Segment / Product / Driver / Metric 放进同一研究地图；证据节点和行业模板不会混成同一事实层。')+'<div class="paper">'+companyMapView()+'</div><div class="grid-2" style="margin-top:16px"><div class="paper">'+segments()+'</div><div class="paper"><span class="eyebrow">INDUSTRY MODULE</span><h3 style="font:500 18px Georgia,serif">'+esc(v.industry_module?.label||'General company')+'</h3><p style="font-size:12px;color:var(--muted);line-height:1.6">'+esc(v.industry_module?.description||'')+'</p><span class="eyebrow" style="margin-top:18px">KNOWN GAPS</span><ul style="font-size:11px;color:var(--muted);line-height:1.7">'+(v.business_map.unknowns||[]).slice(0,4).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div></section>'+
-  '<section class="section" id="findings">'+sectionHead('WHAT CHANGED','值得研究的变化','Deterministic diagnostics → suggested questions。异常关系是 investigation trigger，不是结论。')+'<div class="insight-list">'+(v.findings.length?v.findings.map(insightCard).join(''):'<div class="empty">当前资料没有触发预设高信号规则。你仍可从业务、竞争或自定义问题开始。</div>')+'</div></section>'+
-  '<section class="section">'+sectionHead('QUESTIONS WORTH INVESTIGATING','从问题进入，而不是从模型参数进入','保存问题后，再去 Evidence / Compare / Scenario 建立证据链。')+'<div class="question-list">'+v.questions.map((q,i)=>'<div class="question"><b>'+esc(q)+'</b><button data-question="'+i+'">开始研究 →</button></div>').join('')+'</div></section>'+
-  '<section class="section">'+sectionHead('OPTIONAL INTELLIGENCE','AI 只规划研究，不拥有事实','V3-10 将 AI 放在 deterministic core 之外；默认关闭、用户显式触发、用户显式保存。')+plannerView()+'</section>';
+  '<section class="section" id="findings">'+sectionHead('What changed','值得研究的变化','先看少量高信号关系。Deterministic diagnostics 只负责提出 investigation trigger，不替研究者形成结论。')+'<div class="insight-list">'+(v.findings.length?v.findings.map(insightCard).join(''):'<div class="empty">当前资料没有触发预设高信号规则。你仍可从业务、竞争或自定义问题开始。</div>')+'</div></section>'+
+  '<section class="section">'+sectionHead('Financial trajectory','先看趋势，再决定往哪里钻','同一屏只回答一个分析问题；图表用于 inspection，不承担评分或结论。')+'<div class="grid-2"><div class="paper chart-card"><div class="chart-title"><h3>Revenue × Operating Margin</h3><span>Trend</span></div>'+chartHost('chart-trajectory','Revenue and operating margin trend')+'</div><div class="paper chart-card"><div class="chart-title"><h3>Cash & Working Capital</h3><span>Relationship</span></div>'+chartHost('chart-working-capital','CFO receivables and inventory trend')+'</div></div></section>'+
+  '<section class="section">'+sectionHead('Questions worth investigating','从问题进入，而不是从模型参数进入','选择一个问题后，再去 Evidence / Compare / Scenario 建立证据链。')+'<div class="question-list">'+v.questions.map((q,i)=>'<div class="question"><b>'+esc(q)+'</b><button data-question="'+i+'">开始研究 →</button></div>').join('')+'</div></section>'+
+  '<section class="section">'+sectionHead('Business context','深度信息按需展开','Company / Segment / Product / Driver 仍然保留，但不再和核心研究路径争夺首屏注意力。')+businessContext+'</section>'+
+  '<section class="section">'+sectionHead('Optional intelligence','AI 只规划研究，不拥有事实','默认关闭。只有在需要扩展研究问题或查证路径时再进入。')+aiContext+'</section>';
 }
 function renderEvidence(){
   const v=state.v3,c=v.source_coverage,integ=v.data_integrity;
