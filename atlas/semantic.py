@@ -209,7 +209,7 @@ def build_semantic_snapshot(state):
         ))
     observation_ids={o.id for o in observations}
     segments=[]
-    segment_rows=profile.get("business_segments") or profile.get("segments",[])
+    segment_rows=profile.get("business_segments") or [s for s in profile.get("segments",[]) if s.get("semantic_role")!="consolidated_total"]
     for i,s in enumerate(segment_rows):
         sid=s.get("id") or f"{ticker}:segment:{_slug(s.get('key') or s.get('name') or i)}"
         src=[x for x in (s.get("source_ids") or ([s.get("source")] if s.get("source") else [])) if x in document_ids]
