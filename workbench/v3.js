@@ -2,7 +2,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(v,d=0)=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
-let token='',companies=[],sourceCapabilities={},state=null,page='research',analysisTab='financials',selectedFinding=null,peerResult=null,scenarioResult=null,serial=0;
+let token='',companies=[],sourceCapabilities={},state=null,page='research',analysisTab='financials',selectedFinding=null,peerResult=null,scenarioResult=null,plannerResult=null,serial=0;
 
 function context(){return {company:state?.company?.ticker||resolveCompany($('#companySearch').value)?.ticker||'NVDA',asof:$('#asof').value}}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,3200)}
@@ -22,6 +22,35 @@ function sourceIdsForFinding(f){return [...new Set((f.evidence_ids||[]).map(id=>
 function sourceCoverage(){
   const c=state.v3.source_coverage;
   return '<div class="source-summary"><span class="eyebrow">SOURCE COVERAGE</span><strong>'+fmt(c.documents)+'</strong><p>份当前研究时点可用资料</p><p>'+fmt(c.observations)+' observations · '+fmt(c.pending_review)+' 待人工核验</p></div>'
+}
+function chartHost(id,label){return '<div class="chart-canvas" id="'+id+'" role="img" aria-label="'+esc(label)+'"></div>'}
+function setAmbient(){
+  const key=((state?.company?.industry||'')+' '+(state?.company?.mode||'')).toLowerCase();
+  let ambient='blue';
+  if(/software|saas|subscription/.test(key))ambient='violet';
+  else if(/semiconductor|hardware|chip/.test(key))ambient='indigo';
+  else if(/consumer|retail/.test(key))ambient='warm';
+  else if(/automotive|vehicle/.test(key))ambient='teal';
+  else if(/bank|financial/.test(key))ambient='green';
+  document.documentElement.dataset.ambient=ambient;
+}
+function plannerView(){
+  const cap=sourceCapabilities.ai||{};
+  const status=cap.enabled?'<span class="ai-badge">OPTIONAL AI · '+esc(cap.model||'enabled')+'</span>':'<span class="ai-badge muted-badge">OFF BY DEFAULT</span>';
+  if(!cap.enabled)return '<div class="planner-shell"><div class="planner-head"><div><span class="eyebrow">V3-10 · AI RESEARCH PLANNER</span><h3>让 AI 规划“下一步查什么”，不让它拥有事实。</h3></div>'+status+'</div><p>Planner 只读取 compact research snapshot，生成问题、待查证据和反证路径。它不能写 Observation、不能标记 verified、不能替你形成投资结论。</p><div class="planner-enable"><code>ATLAS_AI_BASE_URL / ATLAS_AI_API_KEY / ATLAS_AI_MODEL</code><span>然后使用 <b>--enable-ai</b> 启动。本功能完全可选。</span></div></div>';
+  if(!plannerResult)return '<div class="planner-shell"><div class="planner-head"><div><span class="eyebrow">V3-10 · AI RESEARCH PLANNER</span><h3>Grounded planning, human-owned judgment.</h3></div>'+status+'</div><p>当前模型只会收到 findings、行业 driver、source metadata 和允许引用的 evidence/source IDs；默认不发送原始文档全文。</p><button class="primary-action" data-run-planner>生成研究计划</button></div>';
+  return '<div class="planner-shell"><div class="planner-head"><div><span class="eyebrow">AI-SUGGESTED · NOT VERIFIED</span><h3>'+esc(plannerResult.summary||'Suggested research plan')+'</h3></div>'+status+'</div><div class="plan-grid">'+plannerResult.items.map((item,i)=>'<article class="plan-item"><span class="plan-index">0'+(i+1)+'</span><h4>'+esc(item.question)+'</h4><p>'+esc(item.why_now||'')+'</p><dl><dt>Evidence to check</dt><dd>'+esc((item.evidence_to_check||[]).join(' · ')||'Model did not specify')+'</dd><dt>Counter-evidence</dt><dd>'+esc((item.counter_evidence||[]).join(' · ')||'Model did not specify')+'</dd><dt>Next actions</dt><dd>'+esc((item.suggested_actions||[]).join(' · ')||'Open sources and test the question')+'</dd></dl>'+(item.reference_warning?'<small class="planner-warning">'+esc(item.reference_warning)+'</small>':'')+'<button class="text-action" data-plan-question="'+i+'">Add question →</button></article>').join('')+'</div><p class="planner-boundary">'+esc(plannerResult.boundary||'AI output is a research plan, not a fact or final judgment.')+'</p></div>'
+}
+function renderCharts(){
+  requestAnimationFrame(()=>{
+    if(!window.AtlasCharts||!state)return;
+    const trajectory=$('#chart-trajectory');if(trajectory)window.AtlasCharts.trajectory(trajectory,state.v3.trajectory||[]);
+    const wc=$('#chart-working-capital');if(wc)window.AtlasCharts.workingCapital(wc,state.v3.trajectory||[]);
+    const bridge=$('#chart-profit-bridge');if(bridge)window.AtlasCharts.bridge(bridge,state.diagnostics.bridges||[]);
+    const segment=$('#chart-segment-mix');if(segment)window.AtlasCharts.segmentMix(segment,state.v3.business_map?.segments||[]);
+    const peer=$('#chart-peer');if(peer&&peerResult)window.AtlasCharts.peer(peer,peerResult.rows||[]);
+    const scenario=$('#chart-scenario');if(scenario&&scenarioResult)window.AtlasCharts.scenario(scenario,scenarioResult.scenarios?.base?.rows||[]);
+  });
 }
 function nextStep(){
   const questions=state.records.filter(r=>r.kind==='question');
@@ -94,10 +123,10 @@ function renderResearch(){
   const v=state.v3,t=v.trajectory.at(-1)||{},r=state.diagnostics.ratios||{};
   $('#content').innerHTML='<div class="page-intro"><div><span class="eyebrow">60-SECOND COMPANY VIEW</span><h1>'+esc(state.company.name)+'</h1><p>'+esc(v.summary)+' 当前研究视图只使用截至 '+esc(state.asof)+' 已披露的数据；系统先提出问题，再由研究者形成判断。</p></div>'+sourceCoverage()+'</div>'+
   '<div class="metrics-row">'+stat('Revenue',fmt(t.revenue),t.period||'')+stat('Revenue growth',r.revenue_growth==null?'—':fmt(r.revenue_growth,1)+'%','YoY')+stat('Operating margin',r.op_margin==null?'—':fmt(r.op_margin,1)+'%','GAAP')+stat('Cash conversion',r.cash_conversion==null?'—':fmt(r.cash_conversion,1)+'%','CFO / Net income')+'</div>'+
-  '<section class="section">'+sectionHead('FINANCIAL TRAJECTORY','先看趋势，再决定往哪里钻','收入、利润率和现金的变化只负责提出研究问题，不自动给公司打分。')+'<div class="grid-2"><div class="paper chart-card"><div class="chart-title"><h3>Revenue × Operating Margin</h3><span>Trend</span></div>'+trajectorySvg(v.trajectory)+'</div><div class="paper chart-card"><div class="chart-title"><h3>Cash & Working Capital</h3><span>Relationship</span></div>'+cashSvg(v.trajectory)+'</div></div></section>'+
+  '<section class="section">'+sectionHead('FINANCIAL TRAJECTORY','先看趋势，再决定往哪里钻','收入、利润率和现金的变化只负责提出研究问题，不自动给公司打分。')+'<div class="grid-2"><div class="paper chart-card"><div class="chart-title"><h3>Revenue × Operating Margin</h3><span>Trend</span></div>'+chartHost('chart-trajectory','Revenue and operating margin trend')+'</div><div class="paper chart-card"><div class="chart-title"><h3>Cash & Working Capital</h3><span>Relationship</span></div>'+chartHost('chart-working-capital','CFO receivables and inventory trend')+'</div></div></section>'+
   '<section class="section">'+sectionHead('BUSINESS MAP','这家公司靠什么赚钱','V3-7 把 Company / Segment / Product / Driver / Metric 放进同一研究地图；证据节点和行业模板不会混成同一事实层。')+'<div class="paper">'+companyMapView()+'</div><div class="grid-2" style="margin-top:16px"><div class="paper">'+segments()+'</div><div class="paper"><span class="eyebrow">INDUSTRY MODULE</span><h3 style="font:500 18px Georgia,serif">'+esc(v.industry_module?.label||'General company')+'</h3><p style="font-size:12px;color:var(--muted);line-height:1.6">'+esc(v.industry_module?.description||'')+'</p><span class="eyebrow" style="margin-top:18px">KNOWN GAPS</span><ul style="font-size:11px;color:var(--muted);line-height:1.7">'+(v.business_map.unknowns||[]).slice(0,4).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div></section>'+
   '<section class="section" id="findings">'+sectionHead('WHAT CHANGED','值得研究的变化','Deterministic diagnostics → suggested questions。异常关系是 investigation trigger，不是结论。')+'<div class="insight-list">'+(v.findings.length?v.findings.map(insightCard).join(''):'<div class="empty">当前资料没有触发预设高信号规则。你仍可从业务、竞争或自定义问题开始。</div>')+'</div></section>'+
-  '<section class="section">'+sectionHead('QUESTIONS WORTH INVESTIGATING','从问题进入，而不是从模型参数进入','保存问题后，再去 Evidence / Compare / Scenario 建立证据链。')+'<div class="question-list">'+v.questions.map((q,i)=>'<div class="question"><b>'+esc(q)+'</b><button data-question="'+i+'">开始研究 →</button></div>').join('')+'</div></section>';
+  '<section class="section">'+sectionHead('QUESTIONS WORTH INVESTIGATING','从问题进入，而不是从模型参数进入','保存问题后，再去 Evidence / Compare / Scenario 建立证据链。')+'<div class="question-list">'+v.questions.map((q,i)=>'<div class="question"><b>'+esc(q)+'</b><button data-question="'+i+'">开始研究 →</button></div>').join('')+'</div></section>'+\n  '<section class="section">'+sectionHead('OPTIONAL INTELLIGENCE','AI 只规划研究，不拥有事实','V3-10 将 AI 放在 deterministic core 之外；默认关闭、用户显式触发、用户显式保存。')+plannerView()+'</section>';
 }
 function renderEvidence(){
   const v=state.v3,c=v.source_coverage,integ=v.data_integrity;
@@ -116,12 +145,12 @@ function bridgeViz(){
 }
 function renderFinancials(){
   return sectionHead('FINANCIAL DIAGNOSTICS','关系优先，不是 ratio 展览','Growth → Profitability → Cash → Working Capital → Capital intensity。')+
-  '<div class="grid-2"><div class="paper"><div class="chart-title"><h3>Operating Profit Bridge</h3><span>Waterfall logic</span></div>'+bridgeViz()+'<p style="font-size:10px;color:var(--muted)">这是会计分解，不等于商业因果。</p></div><div class="paper"><div class="chart-title"><h3>Prioritized findings</h3><span>'+fmt(state.v3.findings.length)+' signals</span></div><div class="insight-list">'+state.v3.findings.slice(0,3).map(insightCard).join('')+'</div></div></div>'
+  '<div class="grid-2"><div class="paper"><div class="chart-title"><h3>Operating Profit Bridge</h3><span>Waterfall logic</span></div>'+chartHost('chart-profit-bridge','Operating profit bridge accounting decomposition')+'<p style="font-size:10px;color:var(--muted)">这是会计分解，不等于商业因果。</p></div><div class="paper"><div class="chart-title"><h3>Prioritized findings</h3><span>'+fmt(state.v3.findings.length)+' signals</span></div><div class="insight-list">'+state.v3.findings.slice(0,3).map(insightCard).join('')+'</div></div></div>'
 }
 function renderBusiness(){
   const b=state.v3.business_map||{},source=(b.business_source_ids||[])[0];
   const filing='<div class="paper"><span class="eyebrow">10-K · ITEM 1 BUSINESS</span><h3 style="margin-top:8px">What the filing says</h3><p style="margin-top:8px;white-space:pre-line">'+esc(b.business_summary||'当前研究时点没有可用的 Item 1 Business 文本。')+'</p><p style="margin-top:8px;font-size:10px;color:var(--muted)">'+esc(b.business_review_state||'unavailable')+' · '+esc(b.business_extraction_method||'no extraction')+'</p>'+(source?'<button style="margin-top:10px" data-source="'+esc(source)+'">打开 10-K 来源</button>':'')+'</div>';
-  const seg='<div class="paper"><span class="eyebrow">SEGMENT CANDIDATES</span><h3 style="margin-top:8px">How the company says it is organized</h3><div style="margin-top:12px">'+segments()+'</div></div>';
+  const numericSegments=(b.segments||[]).some(x=>x.value!=null);\n  const seg='<div class="paper"><span class="eyebrow">SEGMENT CANDIDATES</span><h3 style="margin-top:8px">How the company says it is organized</h3>'+(numericSegments?chartHost('chart-segment-mix','Numeric segment mix'):'')+'<div style="margin-top:12px">'+segments()+'</div></div>';
   const prod='<div class="paper"><span class="eyebrow">PRODUCT / PLATFORM CANDIDATES</span><h3 style="margin-top:8px">What it sells or offers</h3><div style="margin-top:12px">'+products()+'</div><p style="margin-top:10px;font-size:10px;color:var(--muted)">候选必须保留 source / excerpt / review state；未映射到 Segment 时不会自动猜测归属。</p></div>';
   return sectionHead('V3-7 · COMPANY / PRODUCT MAP','从“公司介绍”升级为可追溯的经营结构图','Company → Segment → Product → Operating Driver → Financial Outcome；V3-8 行业模板只提出应该研究什么，不伪装成公司披露。')+
   '<div class="paper">'+companyMapView()+'</div>'+
@@ -146,7 +175,7 @@ function renderScenario(){
   let body='<div class="gate"><span class="eyebrow">QUESTION-FIRST SCENARIO</span><h3>'+esc(q)+'</h3><p style="font-size:11px;color:var(--muted)">用当前基础假设做一次 deterministic model run。它回答“如果这些假设成立会怎样”，不是概率预测。</p><button class="quiet" data-run-scenario>运行当前基础情景</button></div>';
   if(scenarioResult){
     const rows=scenarioResult.scenarios?.base?.rows||[];
-    body+='<div class="paper"><div class="chart-title"><h3>Base scenario</h3><span>Calculated</span></div><table class="heatmap"><thead><tr><th>Year</th><th>Revenue</th><th>EBIT</th><th>FCFF</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+esc(r.year)+'</td><td>'+fmt(r.revenue)+'</td><td>'+fmt(r.ebit)+'</td><td>'+fmt(r.fcff)+'</td></tr>').join('')+'</tbody></table><p style="font-size:10px;color:var(--muted)">高级参数编辑继续保留在 V2；V3 P0 先验证 question → scenario 的进入逻辑。</p></div>'
+    body+='<div class="paper"><div class="chart-title"><h3>Base scenario</h3><span>Calculated</span></div>'+chartHost('chart-scenario','Calculated base scenario trajectory')+'<table class="heatmap"><thead><tr><th>Year</th><th>Revenue</th><th>EBIT</th><th>FCFF</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+esc(r.year)+'</td><td>'+fmt(r.revenue)+'</td><td>'+fmt(r.ebit)+'</td><td>'+fmt(r.fcff)+'</td></tr>').join('')+'</tbody></table><p style="font-size:10px;color:var(--muted)">高级参数编辑继续保留在 V2；V3 P0 先验证 question → scenario 的进入逻辑。</p></div>'
   }
   return body
 }
@@ -165,6 +194,8 @@ function render(){
   if(page==='evidence')renderEvidence();
   if(page==='analysis')renderAnalysis();
   if(page==='report')renderReport();
+  const content=$('#content');content.classList.remove('is-entering');requestAnimationFrame(()=>content.classList.add('is-entering'));
+  renderCharts();
 }
 function openEvidence(f){
   const ids=f?.evidence_ids||[];const obs=ids.map(obsById).filter(Boolean),sources=[...new Set(obs.map(o=>o.source_id))].map(sourceById).filter(Boolean);
@@ -196,12 +227,25 @@ async function startQuestion(q){
   if(!source_ids.length)return toast('没有可关联的来源');
   try{await post('question-save',{question:q,reason:'用户从 60-second Company View 选择该问题。',finding_id:null,evidence_ids:[],source_ids,status:'open'});toast('研究问题已保存');await load()}catch(e){showError(e.message)}
 }
+async function runPlanner(){
+  if(!sourceCapabilities.ai?.enabled)return toast('AI Research Planner 当前关闭');
+  plannerResult=null;toast('正在生成 grounded research plan…');
+  try{plannerResult=await post('ai-plan',{focus:selectedQuestion()||state.v3.questions?.[0]||''});render()}catch(e){showError(e.message)}
+}
+async function savePlannerQuestion(index){
+  const item=plannerResult?.items?.[index];if(!item)return;
+  if(!(item.source_ids||[]).length)return toast('该 AI 建议没有可验证 source ID，暂不保存');
+  try{
+    await post('question-save',{question:item.question,reason:'AI planner suggestion selected by user. '+(item.why_now||''),finding_id:null,evidence_ids:item.evidence_ids||[],source_ids:item.source_ids,status:'open'});
+    toast('AI 建议已作为 Research Question 保存；仍需人工判断');await load();
+  }catch(e){showError(e.message)}
+}
 async function load(ticker){
   const current=++serial;clearError();$('#status').textContent='正在建立 point-in-time research view…';
   try{
     const q=new URLSearchParams({company:ticker||context().company,asof:$('#asof').value});
     const next=await getJson('/api/state?'+q);
-    if(current!==serial)return;state=next;peerResult=null;scenarioResult=null;
+    if(current!==serial)return;state=next;peerResult=null;scenarioResult=null;plannerResult=null;setAmbient();
     $('#companySearch').value=state.company.ticker;$('#companyTicker').textContent=state.company.ticker;$('#companyName').textContent=state.company.name;$('#companySubtitle').textContent=state.company.subtitle||state.company.industry;$('#storageState').textContent=state.storage;
     $('#status').textContent='Ready · '+state.v3.source_coverage.documents+' sources · '+state.v3.source_coverage.pending_review+' pending review · as of '+state.asof;render()
   }catch(e){showError(e.message);$('#status').textContent='Research view unavailable'}
@@ -226,12 +270,11 @@ document.addEventListener('click',async e=>{
   const s=e.target.closest('[data-source]');if(s){openSource(s.dataset.source);return}
   if(e.target.closest('[data-load-peers]')){await loadPeers();return}
   if(e.target.closest('[data-run-scenario]')){await runScenario();return}
-  if(e.target.closest('[data-go-research]')){page='research';render();return}
+  if(e.target.closest('[data-go-research]')){page='research';render();return}\n  if(e.target.closest('[data-run-planner]')){await runPlanner();return}\n  const pq=e.target.closest('[data-plan-question]');if(pq){await savePlannerQuestion(Number(pq.dataset.planQuestion));return}
   const n=e.target.closest('[data-next]');if(n){if(n.dataset.next==='analysis'){page='analysis';analysisTab='financials';render()}else if(n.dataset.next==='first-finding'){$('#findings')?.scrollIntoView({behavior:'smooth'})}else if(n.dataset.next==='pending'){document.querySelector('.source-list')?.scrollIntoView({behavior:'smooth'})}return}
 });
 $('#openCompany').addEventListener('click',async()=>{const query=$('#companySearch').value.trim(),c=resolveCompany(query);if(c){await load(c.ticker);return}if(!sourceCapabilities.sec?.enabled){showError('当前未启用 SEC SourceAdapter。设置 ATLAS_SEC_USER_AGENT 并用 --enable-sec 启动后，可直接输入美国上市公司 ticker。');return}clearError();$('#status').textContent='SEC EDGAR：正在解析公司、filings 与 Company Facts…';try{const result=await post('sec-starter-pack',{query});const list=await getJson('/api/companies');companies=list.companies||companies;$('#companyList').innerHTML=companies.map(x=>'<option value="'+esc(x.ticker)+'">'+esc(x.name)+'</option>').join('');if(result.asof)$('#asof').value=result.asof;toast('Starter Research Pack 已建立；财务 observations 待人工核验');await load(result.ticker)}catch(e){showError(e.message);$('#status').textContent='SEC Starter Pack 建立失败'}});
 $('#companySearch').addEventListener('keydown',e=>{if(e.key==='Enter')$('#openCompany').click()});
 $('#asof').addEventListener('change',()=>load(context().company));
 $('#closeDrawer').addEventListener('click',()=>$('#evidenceDrawer').close());
-$('#exportButton').addEventListener('click',async()=>{try{const r=await post('export-file',{});toast('研究包已保存：'+r.filename)}catch(e){showError(e.message)}});
-init();
+$('#exportButton').addEventListener('click',async()=>{try{const r=await post('export-file',{});toast('研究包已保存：'+r.filename)}catch(e){showError(e.message)}});\nwindow.addEventListener('resize',()=>window.AtlasCharts?.resizeAll());\ninit();
