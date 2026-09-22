@@ -218,3 +218,38 @@ html[data-nav-direction="backward"]::view-transition-new(atlas-content){animatio
   ::view-transition-old(atlas-content),::view-transition-new(atlas-content){animation:none!important}
   #content.atlas-slide-forward,#content.atlas-slide-backward{animation:none!important}
 }
+/* V3 interaction correction — true sequential slide, no snapshot overlap. */
+main{overflow-x:clip!important}
+#content{
+  position:relative;
+  will-change:transform,opacity;
+  transform:translateZ(0);
+  backface-visibility:hidden;
+}
+#content.is-entering>.page-intro,#content.is-entering>.metrics-row,#content.is-entering>.section,#content.is-entering>.subnav,
+#content.is-entering>.hero,#content.is-entering>.metrics{animation:none!important}
+#content{view-transition-name:none!important}
+::view-transition-old(root),::view-transition-new(root),
+::view-transition-old(atlas-content),::view-transition-new(atlas-content){animation:none!important}
+
+/* Findings are separated by rhythm + rules, not a colored side rail. */
+
+.finding{
+  padding:22px 0 23px!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+.finding:before{display:none!important;content:none!important}
+.finding.high,.finding.watch{box-shadow:none!important}
+.finding:hover{padding-left:0!important;background:rgba(255,255,255,.14)!important}
+.finding .eyebrow{display:flex!important;align-items:center;gap:8px}
+.finding .eyebrow:before{
+  content:"";width:7px;height:7px;border-radius:50%;flex:0 0 auto;
+  background:rgba(16,20,23,.20)
+}
+.finding.high .eyebrow:before{background:var(--p3-green)}
+.finding.watch .eyebrow:before{background:var(--p2-pink)}
+
+@media(prefers-reduced-motion:reduce){
+  #content{will-change:auto!important}
+}

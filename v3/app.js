@@ -25,20 +25,36 @@ function setAmbient(){
   delete document.documentElement.dataset.tone;
 }
 function smoothRender(direction='forward'){
-  const root=document.documentElement;
-  root.dataset.navDirection=direction;
-  const cleanup=()=>{if(root.dataset.navDirection===direction)delete root.dataset.navDirection};
-  if(document.startViewTransition){
-    const transition=document.startViewTransition(()=>render());
-    transition.finished.finally(cleanup);
-  }else{
+  const content=$('#content');
+  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if(!content||reduced){render();return Promise.resolve()}
+  const outgoingX=direction==='backward'?86:-86;
+  const incomingX=-outgoingX;
+  const token=++smoothRender.token;
+  content.getAnimations().forEach(a=>a.cancel());
+  content.style.pointerEvents='none';
+  const out=content.animate(
+    [{transform:'translate3d(0,0,0)',opacity:1},{transform:'translate3d('+outgoingX+'px,0,0)',opacity:0}],
+    {duration:220,easing:'cubic-bezier(.4,0,.7,1)',fill:'forwards'}
+  );
+  return out.finished.catch(()=>{}).then(()=>{
+    if(token!==smoothRender.token)return;
     render();
-    const content=$('#content'),cls=direction==='backward'?'atlas-slide-backward':'atlas-slide-forward';
-    content.classList.remove('atlas-slide-forward','atlas-slide-backward');
-    requestAnimationFrame(()=>content.classList.add(cls));
-    setTimeout(()=>{content.classList.remove(cls);cleanup()},560);
-  }
+    content.getAnimations().forEach(a=>a.cancel());
+    const incoming=content.animate(
+      [{transform:'translate3d('+incomingX+'px,0,0)',opacity:0},{transform:'translate3d(0,0,0)',opacity:1}],
+      {duration:380,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'}
+    );
+    return incoming.finished.catch(()=>{}).then(()=>{
+      if(token===smoothRender.token){
+        content.style.pointerEvents='';
+        content.style.transform='';
+        content.style.opacity='';
+      }
+    })
+  })
 }
+smoothRender.token=0;
 function plannerPreview(){
   return '<div class="planner-shell"><div class="planner-head"><div><span class="eyebrow">V3-10 · OPTIONAL AI RESEARCH PLANNER</span><h3>AI plans the investigation. It does not own the facts.</h3></div><span class="ai-badge">OFF BY DEFAULT</span></div><p>Local V3 can send a compact grounded snapshot to an OpenAI-compatible model to suggest research questions, evidence to seek and counter-evidence. The model cannot write observations, verify evidence, calculate finance or create a final claim.</p><div class="planner-boundaries"><span>ai_suggested</span><span>not_verified</span><span>explicit save only</span><span>source-ID constrained</span></div><small>Public Pages intentionally does not call any AI provider.</small></div>'
 }
