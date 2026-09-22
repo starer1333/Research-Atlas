@@ -19,6 +19,9 @@ def test_semantic_snapshot_contract():
             assert o["document_id"] in doc_ids
             assert o["metric_id"] in metric_ids
             assert o["review_state"] in ["reviewed","pending_review"]
+        assert "business_summary" in sem["company"]
+        assert all(set(s["source_ids"])<=doc_ids for s in sem["segments"])
+        assert all(set(p["source_ids"])<=doc_ids for p in sem["products"])
 
 if __name__=="__main__":
     test_semantic_snapshot_contract()
