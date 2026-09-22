@@ -17,6 +17,7 @@ def main():
     if ROOT not in dbpath.parents:raise SystemExit('Database must remain inside the D-drive project')
     store=Store(dbpath);token=secrets.token_urlsafe(32);origin=f'http://127.0.0.1:{args.port}'
     assets={'/':'index.html','/workbench.css':'workbench.css','/workbench.js':'workbench.js','/workspace.js':'workspace.js','/workspace.css':'workspace.css','/themes.css':'themes.css'}
+    assets.update({'/research.js':'research.js','/research.css':'research.css'})
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args):pass
         def reply(self,data,status=200,mime='application/json; charset=utf-8'):

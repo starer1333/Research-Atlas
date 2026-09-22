@@ -28,7 +28,8 @@ RULES=[
  ('interest','金融业务','利息收入 − 利息支出 = 净利息收入',{'interest_income':1,'interest_expense':-1},'net_interest_income','financial',None)
 ]
 
-def reconcile(metrics,profile,period):
+def reconcile(metrics,profile,period,observations=None):
+    evidence={o['metric']:o for o in (observations or []) if o.get('period')==period}
     checks=[]
     for ident,group,formula,weights,target,template,_ in RULES:
         if template=='financial' and profile.get('mode')!='financial':continue
@@ -42,12 +43,20 @@ def reconcile(metrics,profile,period):
         if not missing:
             expected=sum(number(metrics[k])*v for k,v in terms.items());delta=number(metrics[target])-expected
             status='pass' if abs(delta)<=number(profile.get('tolerance',.01)) else 'fail'
-        checks.append({'id':ident,'period':period,'group':group,'formula':formula,'target':target,'inputs':keys,'missing':missing,'expected':rounded(expected) if expected is not None else None,'actual':metrics.get(target),'difference':rounded(delta) if delta is not None else None,'status':status,'assumptions':assumptions})
+        derived=[k for k in keys if evidence.get(k,{}).get('kind')=='Calculated']
+        unsupported=[k for k in keys if evidence.get(k,{}).get('kind') not in ['Disclosed','Calculated']]
+        circular=[k for k in derived if set(evidence[k].get('depends_on',[])) & (set(keys)-{k})]
+        verification='unresolved' if status!='pass' else 'derived_consistency' if derived else 'unverified_lineage' if unsupported else 'independent_disclosures'
+        reviewed=bool(evidence) and all(evidence.get(k,{}).get('reviewed',False) for k in keys)
+        lineage=[{'metric':k,'observation_id':evidence.get(k,{}).get('id'),'kind':evidence.get(k,{}).get('kind','Unknown'),'depends_on':evidence.get(k,{}).get('depends_on',[]),'reviewed':bool(evidence.get(k,{}).get('reviewed'))} for k in keys]
+        checks.append({'id':ident,'period':period,'group':group,'formula':formula,'target':target,'inputs':keys,'missing':missing,'expected':rounded(expected) if expected is not None else None,'actual':metrics.get(target),'difference':rounded(delta) if delta is not None else None,'status':status,'assumptions':assumptions,'verification':verification,'reviewed':reviewed,'derived_inputs':derived,'dependent_inputs':circular,'lineage':lineage})
     return checks
 
-def dashboard(periods,profile):
+def dashboard(periods,profile,observations=None):
     years=sorted(periods);all_checks=[];common=[]
     for year in years:
-        m=periods[year];all_checks+=reconcile(m,profile,year)
+        m=periods[year];all_checks+=reconcile(m,profile,year,observations)
         common.append({'period':year,'revenue':m.get('revenue'),'gross_margin':ratio(m.get('gross_profit'),m.get('revenue')),'operating_margin':ratio(m.get('operating_income'),m.get('revenue')),'net_margin':ratio(m.get('net_income'),m.get('revenue')),'cfo_margin':ratio(m.get('cfo'),m.get('revenue')),'debt_ratio':ratio(m.get('liabilities'),m.get('assets'))})
-    return {'checks':all_checks,'common_size':common,'coverage':{s:sum(c['status']==s for c in all_checks) for s in ['pass','fail','missing']},'definition':'差额 = 披露右侧值 − 左侧计算值；0 只在已披露或明确口径下使用。','tolerance':profile.get('tolerance',.01)}
+    coverage={s:sum(c['status']==s for c in all_checks) for s in ['pass','fail','missing']}
+    coverage.update({s:sum(c['verification']==s for c in all_checks) for s in ['independent_disclosures','derived_consistency','unverified_lineage']})
+    return {'checks':all_checks,'common_size':common,'coverage':coverage,'definition':'数值一致不等于独立验证。衍生输入仅证明计算自洽；人工审核另行记录。','tolerance':profile.get('tolerance',.01)}

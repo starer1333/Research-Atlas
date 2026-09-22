@@ -39,6 +39,8 @@ class Store:
                         row={'id':f'AMD-{period}-{metric}','company':'AMD','period':period,'period_type':'annual','metric':metric,'label':METRICS[metric],'value':value,'currency':'USD','unit':'million','scope':'consolidated','basis':'GAAP','source_id':AMD_DOC['id'],'kind':'Calculated' if metric in CALCULATED else 'Disclosed','formula':CALCULATED.get(metric),'period_start':AMD_PROFILE['periods'][period]['start'],'period_end':AMD_PROFILE['periods'][period]['end']}
                         db.execute('INSERT INTO observations(id,source_id,company,period,metric,content) VALUES(?,?,?,?,?,?)',(row['id'],row['source_id'],'AMD',period,metric,encode(row)))
                 self._audit(db,'seed_peer','AMD','新增官方年报历史案例，全部待用户审核；既有记录保留')
+            from .intel_seed import seed
+            seed(self,db,encode,METRICS)
     @contextmanager
     def connect(self):
         db=sqlite3.connect(self.path,timeout=15);db.row_factory=sqlite3.Row
@@ -99,7 +101,10 @@ class Store:
         if diagnostics['years'] and required <= set(diagnostics['current']) and diagnostics['current']['revenue'] and profile['segments']:
             params=defaults(company,diagnostics['current'],profile['segments'])
         else:params=None
-        checks=dashboard(periods,profile)
+        # Legacy AMD rows receive lineage metadata without changing amounts or review flags.
+        for o in obs:
+            if o['company']=='AMD' and o['metric']=='liabilities' and o.get('kind')=='Calculated':o['depends_on']=['assets','equity']
+        checks=dashboard(periods,profile,obs)
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
         return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；预置研究问题由 AI 起草，尚未人工确认。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
@@ -134,6 +139,8 @@ class Store:
             with self.connect() as db:db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',('theme',encode(name)))
             return {'theme':name}
         company=p.get('company');self.check_company(company)
+        from .research import ROUTES,handle
+        if route in ROUTES:return handle(self,route,p)
         if route=='compare':return self.compare(company,p.get('peers',[]),p['asof'],p.get('nearby',False))
         if route=='preview-import':return self.preview_import(p['document'],company)
         if route=='export-file':
@@ -230,7 +237,7 @@ class Store:
         if p.get('company')!=company:raise ValidationError('预览资料与当前公司不一致')
         doc,clean=self.validate_document(p);periods={}
         for o in clean:periods.setdefault(o['period'],{})[o['metric']]=o['value']
-        return {'document':doc,'observations':clean,'relations':dashboard(periods,self.profile(company)),'saved':False}
+        return {'document':doc,'observations':clean,'relations':dashboard(periods,self.profile(company),clean),'saved':False}
     def import_document(self,p):
         doc,clean=self.validate_document(p)
         with self.connect() as db:
@@ -238,7 +245,11 @@ class Store:
             self._document(db,doc)
             for o in clean:db.execute('INSERT INTO observations(id,source_id,company,period,metric,content) VALUES(?,?,?,?,?,?)',(o['id'],doc['id'],p['company'],o['period'],o['metric'],encode(o)))
             # Conservative company-level invalidation, explicitly not a precise field DAG.
-            count=db.execute("UPDATE records SET stale=1 WHERE company=? AND kind IN ('model','thesis','memo')",(p['company'],)).rowcount
+            count=db.execute("UPDATE records SET stale=1 WHERE company=? AND kind IN ('model','thesis','memo','driver','research')",(p['company'],)).rowcount
+            for saved in db.execute("SELECT id,company,content FROM records WHERE kind IN ('comparison','business-note')").fetchall():
+                content=json.loads(saved['content'])
+                if p['company'] in content.get('company_ids',[saved['company']]):
+                    db.execute('UPDATE records SET stale=1 WHERE id=?',(saved['id'],));count+=1
             self._audit(db,'import',doc['id'],f'新增 {len(clean)} 条指标；{count} 条同公司研究记录待复核')
         return {'imported':len(clean),'affected':count,'message':'新资料已保存，旧快照保留；同公司模型、论点和备忘录标记待复核。'}
     def export(self,company,asof):
@@ -283,4 +294,6 @@ class Store:
             current_checks=next(s for s in states if s['company']['ticker']==row['ticker'])['relations']['checks']
             if any(c['status']=='fail' and c['period']==row['period'] for c in current_checks):blocking.append('存在未解决的报表勾稽差异')
             row['reasons']=blocking+reasons;row['status']='blocked' if blocking else 'qualified' if reasons else 'comparable';row['ranking_allowed']=not blocking and not reasons
-        return {'asof':asof,'rows':rows,'nearby':bool(nearby),'note':'本表不自动排名。不可比项在矩阵中隐藏；可点击公司回到原始资料。公司收入占比不是市场份额。'}
+        from .research import metric_comparability
+        metric_comparability(rows,states,nearby)
+        return {'asof':asof,'rows':rows,'nearby':bool(nearby),'note':'逐指标判断可比性；无量纲比例不因币种不同一律隐藏。业务结构、会计政策与期间仍需核验，不自动排名。公司收入占比不是市场份额。'}
