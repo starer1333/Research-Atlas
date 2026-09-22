@@ -102,7 +102,7 @@ function renderPeerResult(){
   const rows=peerResult.rows||[],metrics=[['revenue_growth','Revenue growth'],['gross_margin','Gross margin'],['op_margin','Operating margin'],['cash_conversion','Cash conversion']];
   const anchor=rows[0],others=rows.slice(1);
   return '<div class="gate"><span class="eyebrow">COMPARABILITY GATE</span><h3>'+esc(anchor?.ticker||'Anchor')+' vs '+esc(others.map(x=>x.ticker).join(' / '))+'</h3><ul>'+others.flatMap(r=>(r.reasons||[]).map(x=>'<li>'+esc(r.ticker)+': '+esc(x)+'</li>')).join('')+'</ul><p style="font-size:11px;color:var(--muted)">无阻断理由也不等于业务完全相同；逐指标仍使用 metric_checks。</p></div>'+
-  '<table class="heatmap"><thead><tr><th>Metric</th>'+rows.map(r=>'<th>'+esc(r.ticker)+'</th>').join('')+'</tr></thead><tbody>'+metrics.map(m=>'<tr><td>'+m[1]+'</td>'+rows.map(r=>{const c=r.metric_checks?.[m[0]],v=c?.value;return '<td class="heat" style="--heat:'+(v==null?.04:.11)+'" title="'+esc((c?.reasons||c?.notes||[]).join(' · '))+'">'+(v==null?'blocked':fmt(v,1)+'%')+'<br><small>'+esc(c?.status||'')+'</small></td>'}).join('')+'</tr>').join('')+'</tbody></table>'
+  '<table class="heatmap"><thead><tr><th>Metric</th>'+rows.map(r=>'<th>'+esc(r.ticker)+'</th>').join('')+'</tr></thead><tbody>'+metrics.map(m=>'<tr><td>'+m[1]+'</td>'+rows.map(r=>{const c=r.metric_checks?.[m[0]],v=c?.value;return '<td class="heat" style="--heat:'+(v==null?0.04:0.11)+'" title="'+esc((c?.reasons||c?.notes||[]).join(' · '))+'">'+(v==null?'blocked':fmt(v,1)+'%')+'<br><small>'+esc(c?.status||'')+'</small></td>'}).join('')+'</tr>').join('')+'</tbody></table>'
 }
 function renderPeers(){return sectionHead('COMPARATIVE REASONING','先判断能不能比，再解释为什么不同','Peer Comparison 不是排名表；blocked / qualified 状态必须先于图表。')+renderPeerResult()}
 function selectedQuestion(){
