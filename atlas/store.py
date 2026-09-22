@@ -122,7 +122,7 @@ class Store:
         checks=dashboard(periods,profile,obs)
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
-        result={'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'revision_history_all_time':all_records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings、Industry Driver Modules 与 Company Map 来自确定性规则和显式模板。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        result={'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'records_visible_at_asof':records,'revision_history_all_time':all_records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings、Industry Driver Modules 与 Company Map 来自确定性规则和显式模板。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
         result['semantic']=build_semantic_snapshot(result)
         result['v3']=build_v3_view(profile,diagnostics,periods,obs,docs,checks,result['semantic'])
         return result
