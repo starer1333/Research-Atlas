@@ -69,15 +69,17 @@ LLM interpretation != fact.
 - Comparative Reasoning UI over the existing metric-level comparability backend.
 - Research Memory view using immutable existing records.
 - question-save route so a question can be persisted before a conclusion exists.
+- V3 Semantic Contract: Company / Metric / Observation / Document / Segment / Product / Driver / ResearchQuestion / Claim / Revision.
+- Opt-in direct SEC EDGAR SourceAdapter and Automatic Starter Research Pack for new U.S. tickers.
 
 ## Not implemented yet
 
 The foundation branch does not pretend that the later V3 roadmap is complete.
 
-- No EdgarTools/SEC automatic source adapter yet.
+- Direct SEC EDGAR SourceAdapter is implemented as an opt-in local feature; EdgarTools remains a reference/possible alternative adapter.
 - No Docling PDF parser yet.
 - No external LLM/RAG.
-- No new relational semantic-schema migration yet.
+- V3 Semantic Contract is implemented as typed objects + validated projections over the V2 relational store; dedicated-table migration is intentionally deferred.
 - No complete industry-module registry.
 - No graph database.
 - No cloud/multi-user authentication.
@@ -85,10 +87,10 @@ The foundation branch does not pretend that the later V3 roadmap is complete.
 
 ## Next engineering slices
 
-1. Semantic contract and migration: MetricDefinition, canonical Observation fields, Segment, Product, Driver, ResearchQuestion, Claim, Revision.
-2. SourceAdapter interface and EdgarTools implementation for U.S. issuers.
+1. Stabilize the Semantic Contract under real SEC Starter Pack imports; then decide dedicated-table migration.
+2. Add filing-text parsing for Business / Segment / Product descriptions (HTML/Docling) while preserving provenance.
 3. ECharts visualization layer and chart-data contract.
 4. Semiconductor / SaaS / Consumer / Automotive / Bank industry modules.
-5. Optional Docling intake and later LLM-assisted research planning.
+5. Optional LLM-assisted research planning on top of deterministic evidence contracts.
 
 The V3 rule remains: simple surface, deep logic.

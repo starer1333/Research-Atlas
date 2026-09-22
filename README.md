@@ -1,8 +1,73 @@
 # Research Atlas V3｜Guided Company Research Workbench
 
-**V3 development branch:** `feature/research-workbench-v3`. This branch keeps the V2 deterministic backend and research-memory logic, but replaces the default local UI with a four-page guided flow: **Research / Evidence / Analysis / Report**. The previous V2 interface remains available at `/v2`. See [V3 product contract](docs/v3-product-contract.md).
+**Current development branch:** `feature/research-workbench-v3`  
+**V3 UI preview:** https://starer1333.github.io/Research-Atlas/v3/  
+**Draft PR:** https://github.com/starer1333/Research-Atlas/pull/1
 
-V3 foundation deliberately does **not** claim automatic SEC ingestion yet. Current company search uses the existing curated point-in-time fixtures; EdgarTools/SEC source discovery is the next data-engineering slice.
+Research Atlas V3 is a financial-first guided company research workbench. The user-facing flow stays small — **Research / Evidence / Analysis / Report** — while the backend keeps explicit financial semantics, provenance, comparability and revision logic.
+
+## V3 status
+
+### Implemented now
+
+- Four-page V3 information architecture and 60-second Company View.
+- Deterministic Financial Diagnostics and guided research questions.
+- Evidence Drawer with period / basis / scope / disclosure / review state.
+- Comparative Reasoning gate before peer metrics.
+- Question-first Scenario entry and Research Memory.
+- **V3 Semantic Contract** in `atlas/semantic.py`:
+  `Company → Metric → Observation → Document → Segment → Product → Driver → ResearchQuestion → Claim → Revision`.
+- Validated semantic projection exposed in every V3 state response.
+- **SourceAdapter contract** in `atlas/sources/`.
+- **Direct official SEC EDGAR adapter** for company resolution, filing discovery and XBRL Company Facts.
+- **Automatic Starter Research Pack** for a new U.S. ticker when SEC access is explicitly enabled.
+- Existing V2 deterministic backend and SQLite research history remain available; the previous V2 UI is still at `/v2`.
+
+### Not implemented yet
+
+- Automatic extraction of Product / Customer / Competitor / Segment semantics from 10-K prose.
+- Docling/PDF intake pipeline.
+- External LLM/RAG.
+- Complete Semiconductor / SaaS / Consumer / Automotive / Bank driver modules.
+- ECharts production visualization layer.
+- Multi-user/cloud authentication.
+
+## Runtime path
+
+```
+Ticker
+↓
+SourceAdapter
+↓
+SEC EDGAR (official endpoints)
+↓
+Automatic Starter Research Pack
+↓
+V3 Semantic Contract
+↓
+Deterministic diagnostics
+↓
+60-second Company View
+↓
+Question → Evidence → Compare → Scenario → Claim → Revision
+```
+
+## Local start
+
+Default mode remains local-only:
+
+```powershell
+python -B serve_atlas.py
+```
+
+To allow a user to type a **new U.S. ticker** and build a Starter Research Pack from SEC EDGAR:
+
+```powershell
+$env:ATLAS_SEC_USER_AGENT="ResearchAtlas your-email@example.com"
+python -B serve_atlas.py --enable-sec
+```
+
+SEC ingestion is opt-in, uses only fixed `sec.gov` endpoints, and imports observations as **pending review**. See [V3 SourceAdapter](docs/v3-source-adapters.md), [V3 Semantic Contract](docs/v3-semantic-contract.md), [V3 product contract](docs/v3-product-contract.md), and [security boundary](docs/security.md).
 
 ---
 
@@ -10,7 +75,7 @@ V3 foundation deliberately does **not** claim automatic SEC ingestion yet. Curre
 
 面向有财务基础的初级研究者。把证据、经营假设、计算与研究修订连接起来。
 
-**浏览器演示：** 静态版本位于 `pages/`，支持四家公司、财务表格、来源、勾稽、竞品比较与经营情景。[演示范围与 GitHub Pages 发布说明](docs/github-pages.md)。[下载完整本地版](https://github.com/starer1333/Research-Atlas/archive/refs/heads/feature/research-workbench-v2.zip)。网页版不包含资料导入与持久保存；请使用下方本地启动说明体验完整流程。
+**浏览器演示：** 静态版本位于 `pages/`，支持四家公司、财务表格、来源、勾稽、竞品比较与经营情景。[演示范围与 GitHub Pages 发布说明](docs/github-pages.md)。[下载完整本地版](https://github.com/starer1333/Research-Atlas/archive/refs/heads/feature/research-workbench-v3.zip)。网页版不包含资料导入与持久保存；请使用下方本地启动说明体验完整流程。
 
 **实施原则：借鉴核心思路与选择性复用代码，开发自己的需求 demo；不以完整复现 FinRobot 为前置条件。** 对拟复用模块做针对性验证，保留来源、许可证及改动记录。
 

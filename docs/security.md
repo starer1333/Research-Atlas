@@ -1,5 +1,14 @@
 # 安全边界 / 非安全认证
 
+## V3 optional SEC SourceAdapter (2026-09-22)
+
+V3 adds **opt-in** outbound access to official SEC EDGAR endpoints. It is disabled unless the local server is started with `--enable-sec` and a descriptive `ATLAS_SEC_USER_AGENT` / `--sec-user-agent`. The adapter is hard-limited to `www.sec.gov` and `data.sec.gov`; it does not fetch arbitrary user-supplied URLs. The browser still connects only to the local Research Atlas origin; outbound SEC requests originate from the local Python service.
+
+A Starter Research Pack stores official filing metadata and selected XBRL Company Facts in the local SQLite workspace. Imported observations start as `pending_review`. Multiple candidate facts/restatements are not silently flattened into “truth”: the chosen fact keeps accession, filed date, source taxonomy tag, version count and selection policy.
+
+This is a convenience ingestion layer, not a security or audit certification. SEC availability, rate limits and taxonomy differences can cause incomplete packs.
+
+
 ## V2 更新（2026-09-18）
 
 以下旧章节仅描述 V0.1。V2 的资料摘录、指标、审核、模型/预测/备忘录版本和操作日志保存至项目 `.runtime/workbench/research.sqlite3`。没有浏览器 localStorage、索引数据库或云模型调用。没有读取密钥。导出由本地服务直接写入资料库同级 `exports` 目录，文件名由服务端生成，不接受外部路径；不经过浏览器默认下载目录。
