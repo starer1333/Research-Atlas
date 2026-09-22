@@ -301,3 +301,88 @@ footer{border-top:1px solid var(--line);padding:16px 32px;display:flex;justify-c
   html{scroll-behavior:auto}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
+
+
+/* Readability floor — desktop research sessions must not rely on microtype.
+   Minimum UI copy is 12px; most secondary copy is 13px. */
+:root{
+  --type-caption:12px;
+  --type-secondary:13px;
+  --type-body:15px;
+}
+.v3-brand small,
+.company-picker label,
+.company-picker p,
+.v3-rail nav button span,
+.v3-rail nav button small,
+.rail-foot,
+.company-context>span:first-child,
+.company-context #companySubtitle,
+.top-actions label,
+.status-line,
+.next-step span,
+.next-step button,
+.eyebrow,
+.source-summary p,
+.metric span,
+.metric small,
+.chart-title span,
+.chart-unavailable,
+.signal,
+.insight-actions button,
+.text-action,
+.question:before,
+.question button,
+.map-node small,
+.map-node p,
+.map-node button,
+.map-empty,
+.map-boundary,
+.module-reason b,
+.module-reason span,
+.driver-status,
+.driver-card p,
+.driver-card dl,
+.source-item p,
+.source-item button,
+.gate ul,
+.heatmap,
+.bridge-step small,
+.revision p,
+.ai-badge,
+.planner-enable code,
+.planner-enable span,
+.plan-index,
+.plan-item p,
+.plan-item dl,
+.planner-warning,
+.planner-boundary,
+.evidence-card dl,
+.toast,
+footer{
+  font-size:var(--type-caption)!important;
+}
+.company-picker p,
+.v3-rail nav button small,
+.next-step span,
+.section-head p,
+.source-summary p,
+.insight p,
+.insight-detail ul,
+.context-disclosure>summary,
+.segment-row .segment-name,
+.industry-head p,
+.integrity summary,
+.integrity p,
+.source-item p,
+.gate ul,
+.planner-shell>p{
+  font-size:var(--type-secondary)!important;
+}
+.page-intro p{font-size:var(--type-body)!important}
+.v3-rail nav button b{font-size:14px!important}
+.company-context b{font-size:17px!important}
+.metric strong{font-size:28px!important}
+.insight h3{font-size:19px!important}
+.question b{font-size:14px!important}
+.source-item h3{font-size:14px!important}
