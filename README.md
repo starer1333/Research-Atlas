@@ -2,6 +2,8 @@
 
 面向有财务基础的初级研究者。把证据、经营假设、计算与研究修订连接起来。
 
+**浏览器演示：** 静态版本位于 `pages/`，支持四家公司、财务表格、来源、勾稽、竞品比较与经营情景。[演示范围与 GitHub Pages 发布说明](docs/github-pages.md)。[下载完整本地版](https://github.com/starer1333/Research-Atlas/archive/refs/heads/feature/research-workbench-v2.zip)。网页版不包含资料导入与持久保存；请使用下方本地启动说明体验完整流程。
+
 **实施原则：借鉴核心思路与选择性复用代码，开发自己的需求 demo；不以完整复现 FinRobot 为前置条件。** 对拟复用模块做针对性验证，保留来源、许可证及改动记录。
 
 ## V2.2 本地研究工作台 / 当前开发版
