@@ -1,4 +1,4 @@
-# V3 Semantic Contract 3.3
+# V3 Semantic Contract 3.4
 
 Research Atlas V3 uses one shared vocabulary across ingestion, finance logic, UI and later AI tools.
 
@@ -40,13 +40,18 @@ ResearchQuestion and Claim remain separate. Saving a question never implies a co
 
 - `Disclosed` does not mean Research Atlas independently audited the value.
 - `Calculated` retains formula/dependencies and cannot masquerade as disclosed.
+- Observation dependencies are observation IDs and must resolve inside the same semantic snapshot.
+- Saved company-specific Driver records are projected as first-class Drivers; superseded revisions remain in semantic history but are omitted from the active Company Map.
+- Claim support and counter-evidence are separate first-class observation references.
+- Claim → ResearchQuestion and Revision → parent Revision references must resolve.
+- Research memory uses each record's explicit research `asof`; the store also exposes all-time revision history separately.
 - `pending_review` is distinct from extraction acceptance.
 - Data Integrity is a data contract, not a company-quality judgement.
 - Point-in-time filtering follows disclosure availability.
 
 ## Migration strategy
 
-V2 SQLite tables remain the persistence substrate. `build_semantic_snapshot(state)` projects them into V3 objects and validates references. This avoids a destructive database migration before the contracts are stable.
+V2 SQLite tables remain the persistence substrate. `build_semantic_snapshot(state)` projects them into V3 objects and validates Observation, Driver, ResearchQuestion, Claim and Revision references. This avoids a destructive database migration before the contracts are stable.
 
 Dedicated relational tables for Segment/Product/Driver/ResearchQuestion/Claim/Revision can follow after the contract survives real UI and SEC-ingestion usage.
 
@@ -62,3 +67,18 @@ Dedicated relational tables for Segment/Product/Driver/ResearchQuestion/Claim/Re
 The map uses relational/JSON objects rather than a graph database. This keeps the MVP inspectable while preserving a future migration path if graph traversal becomes a real product requirement.
 
 `ContextEntity` supports `customer / competitor / geography / channel / risk`. V3-7 defines the contract and map behavior; automatic extraction of those entities remains incomplete.
+
+
+## 3.4 lineage hardening
+
+Semantic Contract 3.4 closes the main projection gaps found during the implementation audit:
+
+- `research-save` can persist `question_id`, `supporting_evidence_ids` and `counter_evidence_ids`.
+- `driver-save` records survive projection into semantic Driver objects.
+- `Observation.depends_on` preserves calculated-value lineage.
+- manual extraction quote/review provenance survives in Observation metadata.
+- Revision parent IDs use the semantic `revision:<record-id>` namespace.
+- `validate_snapshot()` rejects broken Driver / Claim / Revision / dependency references.
+- point-in-time research memory is based on the record's explicit research `asof`, while `revision_history_all_time` preserves the complete immutable audit trail.
+
+These changes strengthen the research substrate without migrating away from the existing SQLite persistence model.
