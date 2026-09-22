@@ -44,7 +44,8 @@ def test_build_starter_pack():
       "products":[{"name":"Atlas GPU","source":"sec:0000001234-25-000001","source_ids":["sec:0000001234-25-000001"],"locator":"Form 10-K · Item 1. Business","excerpt":"Our products include Atlas GPU.","review_state":"pending_review","extraction_method":"10-k-item1-explicit-list","confidence":"candidate"}],
     }
     pack=build_starter_pack(company,submissions,facts,filing_analysis=analysis)
-    assert pack["schema_version"]=="3.4"\n    assert pack["company"]["ticker"]=="TEST"
+    assert pack["schema_version"]=="3.4"
+    assert pack["company"]["ticker"]=="TEST"
     assert pack["adapter"]=="sec-edgar-direct"
     assert pack["coverage"]["fiscal_years"]==["FY2023","FY2024"]
     metrics={o["metric"] for o in pack["observations"]}
