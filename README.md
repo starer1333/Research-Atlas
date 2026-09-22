@@ -2,6 +2,7 @@
 
 **Current development branch:** `feature/research-workbench-v3`  
 **V3 UI preview:** https://starer1333.github.io/Research-Atlas/v3/  
+**V3-6 Business UI preview:** https://starer1333.github.io/Research-Atlas/v3/?view=business  
 **Draft PR:** https://github.com/starer1333/Research-Atlas/pull/1
 
 Research Atlas V3 is a financial-first guided company research workbench. The user-facing flow stays small — **Research / Evidence / Analysis / Report** — while the backend keeps explicit financial semantics, provenance, comparability and revision logic.
@@ -22,6 +23,7 @@ Research Atlas V3 is a financial-first guided company research workbench. The us
 - **Direct official SEC EDGAR adapter** for company resolution, filing discovery and XBRL Company Facts.
 - **Automatic Starter Research Pack** for a new U.S. ticker when SEC access is explicitly enabled.
 - **V3-6 filing-text semantics**: deterministic 10-K Item 1 Business extraction plus explicit Segment / Product / Platform / Service candidates, all source-linked and `pending_review`.
+- The public GitHub Pages V3-6 preview shows the Business/Segment/Product interaction and Semantic Contract layout. Because GitHub Pages is static, live SEC requests only run in the local V3 backend with `--enable-sec`.
 - Existing V2 deterministic backend and SQLite research history remain available; the previous V2 UI is still at `/v2`.
 
 ### Not implemented yet
