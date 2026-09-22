@@ -31,24 +31,28 @@ function smoothRender(direction='forward'){
   const token=++smoothRender.token;
   content.getAnimations().forEach(a=>a.cancel());
   content.style.pointerEvents='none';
+
+  // The page stays spatially fixed. Only the selection pill/plate slides.
+  // Content simply dissolves and resolves in place.
   const out=content.animate(
-    [{opacity:1,filter:'blur(0px)'},{opacity:.18,filter:'blur(1.5px)'}],
-    {duration:110,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'}
+    [{opacity:1,filter:'blur(0px)'},{opacity:.14,filter:'blur(1px)'}],
+    {duration:105,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'}
   );
+
   return out.finished.catch(()=>{}).then(()=>{
     if(token!==smoothRender.token)return;
     render();
     content.getAnimations().forEach(a=>a.cancel());
     const incoming=content.animate(
-      [{opacity:.18,transform:'translate3d(0,7px,0)',filter:'blur(2px)'},{opacity:1,transform:'translate3d(0,0,0)',filter:'blur(0px)'}],
-      {duration:390,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'}
+      [{opacity:.14,filter:'blur(1.2px)'},{opacity:1,filter:'blur(0px)'}],
+      {duration:360,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'}
     );
     return incoming.finished.catch(()=>{}).then(()=>{
       if(token===smoothRender.token){
         content.style.pointerEvents='';
         content.style.opacity='';
-        content.style.transform='';
         content.style.filter='';
+        content.style.transform='';
       }
     })
   })

@@ -162,11 +162,14 @@ dialog#drawer::backdrop{
 }
 .drawer-head h2,.drawer-head button,.ev h3,.ev dd{color:var(--scene-ink)!important}
 .drawer-head button{
-  width:40px;height:40px;display:grid;place-items:center;padding:0!important;
-  border:1px solid rgba(16,20,23,.10)!important;border-radius:13px!important;
-  background:rgba(255,255,255,.32)!important;color:var(--scene-ink)!important;font-size:25px!important;font-weight:300!important;line-height:1!important
+  width:44px;height:44px;display:grid;place-items:center;padding:0!important;
+  border:0!important;border-radius:0!important;
+  background:transparent!important;color:var(--scene-ink)!important;
+  box-shadow:none!important;
+  font-size:29px!important;font-weight:300!important;line-height:1!important;
+  opacity:.92
 }
-.drawer-head button:hover{background:rgba(255,255,255,.52)!important;transform:none!important}
+.drawer-head button:hover{background:transparent!important;box-shadow:none!important;transform:none!important;opacity:1}
 #drawerBody{max-height:calc(88vh - 84px);overflow-y:auto!important;overscroll-behavior:contain;padding:22px!important;scrollbar-width:none!important}
 #drawerBody::-webkit-scrollbar{display:none!important}
 .ev{border-color:var(--scene-line)!important}.ev dt{color:var(--scene-muted)!important}.ev a{color:#0f5369!important;text-underline-offset:4px}
@@ -372,4 +375,38 @@ main{overflow-x:clip!important}
 @media(prefers-reduced-motion:reduce){
   #content{will-change:auto!important}
   .rail nav::before,.subnav::before{transition:none!important}
+}
+
+/* V3 interaction correction v3 — only selection indicators slide. */
+/* Content never translates horizontally or vertically during navigation. */
+#content{
+  transform:none!important;
+  will-change:opacity,filter;
+}
+#content.atlas-slide-forward,#content.atlas-slide-backward{animation:none!important}
+
+/* Keep selection motion isolated to the horizontal and vertical indicator plates. */
+.rail nav::before{
+  transition:
+    transform .52s cubic-bezier(.22,1,.36,1),
+    height .38s cubic-bezier(.22,1,.36,1),
+    opacity .16s ease!important;
+}
+.subnav::before{
+  transition:
+    transform .48s cubic-bezier(.22,1,.36,1),
+    width .38s cubic-bezier(.22,1,.36,1),
+    opacity .16s ease!important;
+}
+
+/* Close control is visually only the × glyph. */
+.drawer-head button,
+.drawer-head button:hover,
+.drawer-head button:focus,
+.drawer-head button:focus-visible{
+  border:0!important;
+  outline:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
 }
