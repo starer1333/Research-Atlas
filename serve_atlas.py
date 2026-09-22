@@ -17,7 +17,7 @@ def main():
     dbpath=Path(args.db).resolve()
     if ROOT not in dbpath.parents:raise SystemExit('Database must remain inside the D-drive project')
     store=Store(dbpath);token=secrets.token_urlsafe(32);origin=f'http://127.0.0.1:{args.port}'
-    sec_requested=args.enable_sec or bool(args.sec_user_agent)
+    sec_requested=args.enable_sec
     if sec_requested and not args.sec_user_agent:raise SystemExit('SEC access requires --sec-user-agent or ATLAS_SEC_USER_AGENT')
     sec_adapter=SecEdgarAdapter(args.sec_user_agent) if sec_requested else None
     assets={'/':'v3-index.html','/index.html':'v3-index.html','/v3':'v3-index.html','/v3.css':'v3.css','/v3.js':'v3.js','/v2':'index.html','/workbench.css':'workbench.css','/workbench.js':'workbench.js','/workspace.js':'workspace.js','/workspace.css':'workspace.css','/themes.css':'themes.css'}
