@@ -21,11 +21,12 @@ Research Atlas V3 is a financial-first guided company research workbench. The us
 - **SourceAdapter contract** in `atlas/sources/`.
 - **Direct official SEC EDGAR adapter** for company resolution, filing discovery and XBRL Company Facts.
 - **Automatic Starter Research Pack** for a new U.S. ticker when SEC access is explicitly enabled.
+- **V3-6 filing-text semantics**: deterministic 10-K Item 1 Business extraction plus explicit Segment / Product / Platform / Service candidates, all source-linked and `pending_review`.
 - Existing V2 deterministic backend and SQLite research history remain available; the previous V2 UI is still at `/v2`.
 
 ### Not implemented yet
 
-- Automatic extraction of Product / Customer / Competitor / Segment semantics from 10-K prose.
+- Full semantic extraction of Customer / Competitor / pricing / strategy and note-level segment disclosures. V3-6 currently handles Item 1 Business plus explicit Segment/Product list candidates only.
 - Docling/PDF intake pipeline.
 - External LLM/RAG.
 - Complete Semiconductor / SaaS / Consumer / Automotive / Bank driver modules.
@@ -40,6 +41,8 @@ Ticker
 SourceAdapter
 ↓
 SEC EDGAR (official endpoints)
+↓
+10-K Item 1 Business parser
 ↓
 Automatic Starter Research Pack
 ↓
