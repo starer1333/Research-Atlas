@@ -86,7 +86,7 @@ def _sentences(section):
 
 def _clean_name(value):
     value=re.sub(r"^[\s:;,.\-–—]+|[\s:;,.\-–—]+$","",value)
-    value=re.sub(r"(?i)^(?:the|our|its|a|an|following|three|four|five|six|two)\s+","",value)
+    value=re.sub(r"(?i)^(?:and|or|the|our|its|a|an|following|three|four|five|six|two)\s+","",value)
     value=re.sub(r"(?i)\s+(?:reportable|operating|business)?\s*segments?$","",value)
     return re.sub(r"\s+"," ",value).strip()
 
