@@ -1,7 +1,7 @@
 """Transform SEC EDGAR payloads into a conservative V3 Starter Research Pack."""
 from datetime import datetime,timezone
 
-SCHEMA_VERSION="3.2"
+SCHEMA_VERSION="3.3"
 CORE_TAGS={
  "revenue":["RevenueFromContractWithCustomerExcludingAssessedTax","Revenues","SalesRevenueNet"],
  "cost":["CostOfRevenue","CostOfGoodsAndServicesSold","CostOfGoodsSold"],
@@ -139,7 +139,7 @@ def build_starter_pack(company,submissions,facts,max_years=3,filing_analysis=Non
         "business_locator":business_locator,"business_review_state":business_review_state,
         "business_extraction_method":business_extraction_method,
         "subtitle":(submissions.get("sicDescription") or industry)+" / SEC EDGAR Starter Pack",
-        "question":"增长、盈利和现金流是否相互支持？","segments":[],"business_segments":business_segments,"products":products,"market":[],
+        "question":"增长、盈利和现金流是否相互支持？","segments":[],"business_segments":business_segments,"products":products,"context_entities":[],"market":[],
         "unknowns":[
             "Starter Pack 自动映射 SEC Company Facts 中可识别的核心财务指标。",
             "10-K Item 1 Business 采用确定性文本规则；Business/Segment/Product 候选仍需人工核验。",
