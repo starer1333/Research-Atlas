@@ -15,7 +15,7 @@ def test_semantic_snapshot_contract():
     with tempfile.TemporaryDirectory() as d:
         state=Store(Path(d)/"research.sqlite3").state("NVDA","2025-03-01")
         sem=state["semantic"]
-        assert sem["schema_version"]=="3.4"
+        assert sem["schema_version"]=="3.5"
         assert sem["company"]["ticker"]=="NVDA"
         assert sem["validation"]["ok"], sem["validation"]["issues"]
         assert sem["metrics"] and sem["documents"] and sem["observations"]
@@ -26,10 +26,14 @@ def test_semantic_snapshot_contract():
             assert o["document_id"] in doc_ids
             assert o["metric_id"] in metric_ids
             assert o["review_state"] in ["reviewed","pending_review"]
+            assert o["provenance"]["primary_source_id"]==o["document_id"]
+            assert o["document_id"] in o["provenance"]["source_ids"]
             assert set(o["depends_on"])<=obs_ids
         assert "business_summary" in sem["company"]
         assert all(set(s["source_ids"])<=doc_ids for s in sem["segments"])
         assert all(set(p["source_ids"])<=doc_ids for p in sem["products"])
+        assert all(set(s["provenance"]["source_ids"])==set(s["source_ids"]) for s in sem["segments"])
+        assert all(set(p["provenance"]["source_ids"])==set(p["source_ids"]) for p in sem["products"])
 
 
 def test_claim_driver_and_revision_lineage_survive_projection():
@@ -98,8 +102,29 @@ def test_calculated_observation_dependency_lineage_is_machine_resolvable():
         assert sem["validation"]["ok"], sem["validation"]["issues"]
 
 
+def test_manual_extraction_provenance_survives_to_semantic_contract():
+    with tempfile.TemporaryDirectory() as d:
+        store=Store(Path(d)/"research.sqlite3")
+        draft=store.action("extraction-draft",{
+            "company":"NVDA","asof":"2025-03-01","source_id":"nv-fy25",
+            "period":"FY2025","period_start":"2024-01-29","period_end":"2025-01-26",
+            "unit":"million","text":"营业收入：130497"
+        })["id"]
+        review=store.action("extraction-review",{
+            "company":"NVDA","asof":"2025-03-01","id":draft,
+            "decisions":[{"action":"accept","reason":"Matched source text"}]
+        })["id"]
+        store.action("extraction-import",{"company":"NVDA","asof":"2025-03-01","id":review})
+        sem=store.state("NVDA","2025-03-01")["semantic"]
+        row=next(x for x in sem["observations"] if x["provenance"].get("extraction_review_id")==review)
+        assert row["provenance"]["quote"]
+        assert row["provenance"]["parent_source_id"]=="nv-fy25"
+        assert row["provenance"]["review_state"]=="pending_review"
+
+
 if __name__=="__main__":
     test_semantic_snapshot_contract()
     test_claim_driver_and_revision_lineage_survive_projection()
     test_calculated_observation_dependency_lineage_is_machine_resolvable()
+    test_manual_extraction_provenance_survives_to_semantic_contract()
     print("semantic contract tests passed")
