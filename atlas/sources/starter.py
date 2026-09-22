@@ -1,7 +1,7 @@
 """Transform SEC EDGAR payloads into a conservative V3 Starter Research Pack."""
 from datetime import datetime,timezone
 
-SCHEMA_VERSION="3.1"
+SCHEMA_VERSION="3.2"
 CORE_TAGS={
  "revenue":["RevenueFromContractWithCustomerExcludingAssessedTax","Revenues","SalesRevenueNet"],
  "cost":["CostOfRevenue","CostOfGoodsAndServicesSold","CostOfGoodsSold"],
@@ -37,7 +37,17 @@ def _filing_url(cik,accession,primary_document=None):
         return f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{compact}/{primary_document}"
     return f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{compact}/{accession}-index.htm"
 
-def build_starter_pack(company,submissions,facts,max_years=3):
+def latest_10k(company,submissions):
+    rows=[r for r in _recent_filings(submissions) if r.get("form")=="10-K" and r.get("primaryDocument")]
+    if not rows:return None
+    row=max(rows,key=lambda x:x.get("filingDate") or "")
+    accn=row["accessionNumber"]
+    return {"id":"sec:"+accn,"accession":accn,"form":"10-K","filing_date":row.get("filingDate"),"report_date":row.get("reportDate"),"primary_document":row.get("primaryDocument"),"url":_filing_url(company["cik"],accn,row.get("primaryDocument"))}
+
+def _slug(value):
+    return "".join(c.lower() if c.isalnum() else "-" for c in str(value)).strip("-") or "item"
+
+def build_starter_pack(company,submissions,facts,max_years=3,filing_analysis=None,filing_error=None):
     ticker=company["ticker"].upper();cik=str(company["cik"]).zfill(10)
     filings=_recent_filings(submissions);accepted_forms={"10-K","10-Q","8-K","DEF 14A"}
     documents=[]
@@ -109,21 +119,42 @@ def build_starter_pack(company,submissions,facts,max_years=3):
     sic=str(submissions.get("sic") or "");sic_num=int(sic) if sic.isdigit() else None
     mode="financial" if sic_num and 6000<=sic_num<6800 else "general"
     industry="financial" if mode=="financial" else ("SEC SIC "+sic if sic else "unclassified")
+    business_segments=[];products=[];business_summary=None;business_source_ids=[]
+    business_locator=None;business_review_state="unavailable";business_extraction_method=None
+    if filing_analysis and filing_analysis.get("item1_found"):
+        business_summary=filing_analysis.get("business_summary")
+        business_source_ids=[filing_analysis["source_id"]]
+        business_locator=filing_analysis.get("business_locator")
+        business_review_state=filing_analysis.get("business_review_state","pending_review")
+        business_extraction_method=filing_analysis.get("business_extraction_method")
+        for row in filing_analysis.get("segments",[]):
+            name=row["name"];business_segments.append({**row,"id":f"{ticker}:segment:{_slug(name)}","semantic_role":"business_segment"})
+        for row in filing_analysis.get("products",[]):
+            name=row["name"];products.append({**row,"id":f"{ticker}:product:{_slug(name)}","segment_id":None,"category":"10-K Item 1 candidate"})
     profile={
         "name":submissions.get("name") or company.get("name") or ticker,"ticker":ticker,"cik":cik,
         "currency":"USD","basis":"GAAP","scope":"consolidated","industry":industry,"mode":mode,
-        "business_models":["待从 10-K Business / Segment disclosures 提取"],
+        "business_models":["待研究者根据 10-K 与行业语境确认"],
+        "business_summary":business_summary,"business_source_ids":business_source_ids,
+        "business_locator":business_locator,"business_review_state":business_review_state,
+        "business_extraction_method":business_extraction_method,
         "subtitle":(submissions.get("sicDescription") or industry)+" / SEC EDGAR Starter Pack",
-        "question":"增长、盈利和现金流是否相互支持？","segments":[],"products":[],"market":[],
+        "question":"增长、盈利和现金流是否相互支持？","segments":[],"business_segments":business_segments,"products":products,"market":[],
         "unknowns":[
-            "Starter Pack 目前只自动导入 SEC Company Facts 中可映射的核心财务指标。",
-            "产品、客户、竞争与分部语义尚未从 10-K 正文自动抽取。",
+            "Starter Pack 自动映射 SEC Company Facts 中可识别的核心财务指标。",
+            "10-K Item 1 Business 采用确定性文本规则；Business/Segment/Product 候选仍需人工核验。",
+            "客户、竞争、定价与完整分部注释尚未自动结构化。",
             "scope 暂按 consolidated 建模；使用前仍需在原始 filing 核对 XBRL context、重述和公司特定口径。",
         ],
         "operating_identity":"gp_less_opex","periods":periods,"tolerance":0.01,
         "source_adapter":"sec-edgar-direct","sic":sic,"sic_description":submissions.get("sicDescription"),
         "exchanges":submissions.get("exchanges",[]),
     }
+    if filing_analysis:
+        for d in documents:
+            if d["id"]==filing_analysis.get("source_id"):
+                d["filing_text_sha256"]=filing_analysis.get("content_sha256");d["item1_section_sha256"]=filing_analysis.get("section_sha256");d["item1_section_chars"]=filing_analysis.get("section_chars",0);d["business_extraction_state"]="candidate" if filing_analysis.get("item1_found") else "not_found"
+                d["note"]="Official SEC filing metadata; Item 1 text parsed with deterministic V3-6 rules; semantic candidates require review."
     return {
         "schema_version":SCHEMA_VERSION,"adapter":"sec-edgar-direct","generated_at":datetime.now(timezone.utc).isoformat(),
         "asof":asof,"company":profile,"documents":docs_sorted,"observations":observations,
@@ -131,10 +162,11 @@ def build_starter_pack(company,submissions,facts,max_years=3):
             "forms":{form:sum(d.get("form")==form for d in documents) for form in sorted(accepted_forms)},
             "mapped_metrics":sorted({o["metric"] for o in observations}),"fiscal_years":[f"FY{x}" for x in fiscal_years],
             "observation_documents":sorted({o["source_id"] for o in observations}),
+            "filing_text":{"attempted":bool(filing_analysis or filing_error),"item1_found":bool(filing_analysis and filing_analysis.get("item1_found")),"source_id":filing_analysis.get("source_id") if filing_analysis else None,"section_chars":filing_analysis.get("section_chars",0) if filing_analysis else 0,"segment_candidates":len(business_segments),"product_candidates":len(products),"error":filing_error},
             "warnings":[
                 "SEC Company Facts can contain multiple contexts/taxonomy tags; V3 keeps provenance and flags multiple candidate versions.",
                 "Starter Pack is a research starting point, not audited normalization by Research Atlas.",
-                "Product/segment/business descriptions require a later filing-text parser or human review.",
+                "Item 1 Business/Segment/Product extraction is deterministic and candidate-only; human review remains required.",
             ],
         },
     }
