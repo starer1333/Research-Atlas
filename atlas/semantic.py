@@ -367,19 +367,25 @@ def validate_snapshot(snapshot):
         if d.get("segment_id") and d["segment_id"] not in segments:issues.append(f"Driver {d['id']} missing Segment")
         if d.get("product_id") and d["product_id"] not in products:issues.append(f"Driver {d['id']} missing Product")
 
+    observation_docs={x["id"]:x["document_id"] for x in snapshot["observations"]}
     for q in snapshot["research_questions"]:
         if q["company_id"]!=company_id:issues.append(f"ResearchQuestion {q['id']} company mismatch")
         if set(q["evidence_ids"])-observations:issues.append(f"ResearchQuestion {q['id']} missing Observation refs")
         if set(q["source_ids"])-docs:issues.append(f"ResearchQuestion {q['id']} missing Document refs")
+        evidence_docs={observation_docs[x] for x in q["evidence_ids"] if x in observation_docs}
+        if evidence_docs-set(q["source_ids"]):issues.append(f"ResearchQuestion {q['id']} source_ids do not cover evidence")
         if q.get("parent_id") and q["parent_id"] not in questions:issues.append(f"ResearchQuestion {q['id']} missing parent Question")
 
     for claim in snapshot["claims"]:
         if claim["company_id"]!=company_id:issues.append(f"Claim {claim['id']} company mismatch")
         if claim.get("question_id") and claim["question_id"] not in questions:issues.append(f"Claim {claim['id']} missing ResearchQuestion")
-        if set(claim.get("supporting_evidence_ids",[]))-observations:issues.append(f"Claim {claim['id']} missing supporting Observation refs")
-        if set(claim.get("counter_evidence_ids",[]))-observations:issues.append(f"Claim {claim['id']} missing counter Observation refs")
-        if set(claim.get("supporting_evidence_ids",[]))&set(claim.get("counter_evidence_ids",[])):issues.append(f"Claim {claim['id']} overlaps support and counter evidence")
+        support=set(claim.get("supporting_evidence_ids",[]));counter=set(claim.get("counter_evidence_ids",[]))
+        if support-observations:issues.append(f"Claim {claim['id']} missing supporting Observation refs")
+        if counter-observations:issues.append(f"Claim {claim['id']} missing counter Observation refs")
+        if support&counter:issues.append(f"Claim {claim['id']} overlaps support and counter evidence")
         if set(claim.get("source_ids",[]))-docs:issues.append(f"Claim {claim['id']} missing Document refs")
+        evidence_docs={observation_docs[x] for x in support|counter if x in observation_docs}
+        if evidence_docs-set(claim.get("source_ids",[])):issues.append(f"Claim {claim['id']} source_ids do not cover evidence")
 
     revisionable=drivers|questions|claims
     for rev in snapshot["revisions"]:
