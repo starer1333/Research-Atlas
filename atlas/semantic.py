@@ -403,10 +403,15 @@ def validate_snapshot(snapshot):
     questions={x["id"] for x in snapshot["research_questions"]};claims={x["id"] for x in snapshot["claims"]}
     revisions={x["id"] for x in snapshot["revisions"]}
 
+    def provenance_sources(obj):
+        return set((obj.get("provenance") or {}).get("source_ids",[]))
+
     for o in snapshot["observations"]:
         if o["company_id"]!=company_id:issues.append(f"Observation {o['id']} company mismatch")
         if o["metric_id"] not in metrics:issues.append(f"Observation {o['id']} missing Metric")
         if o["document_id"] not in docs:issues.append(f"Observation {o['id']} missing Document")
+        if provenance_sources(o)-docs:issues.append(f"Observation {o['id']} provenance missing Document refs")
+        if provenance_sources(o) and o["document_id"] not in provenance_sources(o):issues.append(f"Observation {o['id']} provenance does not include document_id")
         missing=set(o.get("depends_on",[]))-observations
         if missing:issues.append(f"Observation {o['id']} missing dependency refs: {sorted(missing)}")
         if o["id"] in set(o.get("depends_on",[])):issues.append(f"Observation {o['id']} cannot depend on itself")
@@ -416,20 +421,24 @@ def validate_snapshot(snapshot):
     for s in snapshot["segments"]:
         if s["company_id"]!=company_id:issues.append(f"Segment {s['id']} company mismatch")
         if set(s.get("source_ids",[]))-docs:issues.append(f"Segment {s['id']} missing Document refs")
+        if provenance_sources(s)!=set(s.get("source_ids",[])):issues.append(f"Segment {s['id']} provenance/source_ids mismatch")
 
     for p in snapshot["products"]:
         if p["company_id"]!=company_id:issues.append(f"Product {p['id']} company mismatch")
         if p["segment_id"] and p["segment_id"] not in segments:issues.append(f"Product {p['id']} missing Segment")
         if set(p.get("source_ids",[]))-docs:issues.append(f"Product {p['id']} missing Document refs")
+        if provenance_sources(p)!=set(p.get("source_ids",[])):issues.append(f"Product {p['id']} provenance/source_ids mismatch")
 
     for e in snapshot.get("context_entities",[]):
         if e["company_id"]!=company_id:issues.append(f"ContextEntity {e['id']} company mismatch")
         if set(e.get("source_ids",[]))-docs:issues.append(f"ContextEntity {e['id']} missing Document refs")
+        if provenance_sources(e)!=set(e.get("source_ids",[])):issues.append(f"ContextEntity {e['id']} provenance/source_ids mismatch")
 
     for d in snapshot.get("drivers",[]):
         if d["company_id"]!=company_id:issues.append(f"Driver {d['id']} company mismatch")
         if set(d.get("linked_metric_ids",[]))-metrics:issues.append(f"Driver {d['id']} missing Metric refs")
         if set(d.get("source_ids",[]))-docs:issues.append(f"Driver {d['id']} missing Document refs")
+        if provenance_sources(d)!=set(d.get("source_ids",[])):issues.append(f"Driver {d['id']} provenance/source_ids mismatch")
         if d.get("segment_id") and d["segment_id"] not in segments:issues.append(f"Driver {d['id']} missing Segment")
         if d.get("product_id") and d["product_id"] not in products:issues.append(f"Driver {d['id']} missing Product")
 
@@ -450,6 +459,7 @@ def validate_snapshot(snapshot):
         if counter-observations:issues.append(f"Claim {claim['id']} missing counter Observation refs")
         if support&counter:issues.append(f"Claim {claim['id']} overlaps support and counter evidence")
         if set(claim.get("source_ids",[]))-docs:issues.append(f"Claim {claim['id']} missing Document refs")
+        if provenance_sources(claim)!=set(claim.get("source_ids",[])):issues.append(f"Claim {claim['id']} provenance/source_ids mismatch")
         evidence_docs={observation_docs[x] for x in support|counter if x in observation_docs}
         if evidence_docs-set(claim.get("source_ids",[])):issues.append(f"Claim {claim['id']} source_ids do not cover evidence")
 
