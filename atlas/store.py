@@ -69,7 +69,7 @@ class Store:
         if str(p.get('industry','')).strip().lower()=='financial':mode='financial'
         if mode not in ['general','hardware','software','consumer','healthcare','internet','financial']:raise ValidationError('未知分析模板')
         if currency not in ['USD','CNY','EUR','HKD','JPY','GBP'] or basis not in ['GAAP','IFRS','CAS'] or scope not in ['consolidated','parent']:raise ValidationError('币种、准则或报表口径无效')
-        profile={'name':name,'mode':mode,'currency':currency,'basis':basis,'scope':scope,'industry':str(p.get('industry','unclassified')).strip() or 'unclassified','business_models':[str(p.get('business_model','待补充'))],'subtitle':str(p.get('industry','待分类'))+' / '+str(p.get('business_model','待补充')),'question':str(p.get('question','增长、盈利和现金流是否相互支持？')),'segments':[],'market':[],'unknowns':['请先导入带来源的财务数据。','行业分类与实际商业模式需要研究者确认。'],'operating_identity':p.get('operating_identity','with_other'),'periods':{},'tolerance':.01}
+        profile={'name':name,'mode':mode,'currency':currency,'basis':basis,'scope':scope,'industry':str(p.get('industry','unclassified')).strip() or 'unclassified','business_models':[str(p.get('business_model','待补充'))],'subtitle':str(p.get('industry','待分类'))+' / '+str(p.get('business_model','待补充')),'question':str(p.get('question','增长、盈利和现金流是否相互支持？')),'segments':[],'business_segments':[],'products':[],'business_summary':None,'business_source_ids':[],'market':[],'unknowns':['请先导入带来源的财务数据。','行业分类与实际商业模式需要研究者确认。'],'operating_identity':p.get('operating_identity','with_other'),'periods':{},'tolerance':.01}
         if profile['operating_identity'] not in ['with_other','gp_less_opex']:raise ValidationError('无效经营利润口径')
         with self.connect() as db:
             if db.execute('SELECT 1 FROM companies WHERE id=?',(ticker,)).fetchone():raise ValidationError('公司代码已存在；请直接选择该公司')
@@ -90,7 +90,12 @@ class Store:
             records=[{**dict(r),'content':json.loads(r['content'])} for r in db.execute('SELECT * FROM records WHERE company=? ORDER BY created_at DESC',(company,))]
             audit=[dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 40')]
         visible_sources={d['id'] for d in docs}
-        profile=self.profile(company);profile['segments']=[s for s in profile['segments'] if s['source'] in visible_sources];profile['market']=[m for m in profile['market'] if m['source'] in visible_sources];diagnostics=diagnose(periods)
+        profile=self.profile(company);profile['segments']=[s for s in profile.get('segments',[]) if s.get('source') in visible_sources]
+        profile['business_segments']=[s for s in profile.get('business_segments',[]) if set(s.get('source_ids',[]) or ([s.get('source')] if s.get('source') else [])) & visible_sources]
+        profile['products']=[p for p in profile.get('products',[]) if set(p.get('source_ids',[]) or ([p.get('source')] if p.get('source') else [])) & visible_sources]
+        profile['business_source_ids']=[x for x in profile.get('business_source_ids',[]) if x in visible_sources]
+        if profile.get('business_summary') and not profile['business_source_ids']:profile['business_summary']=None
+        profile['market']=[m for m in profile.get('market',[]) if m.get('source') in visible_sources];diagnostics=diagnose(periods)
         for o in obs:
             if o.get('period_end'):profile.setdefault('periods',{})[o['period']]={'start':o.get('period_start'),'end':o['period_end']}
         latest_year=diagnostics['years'][-1] if diagnostics['years'] else None
@@ -98,7 +103,7 @@ class Store:
         profile['segments']=[s for s in profile['segments'] if s.get('period',source_periods.get(s['source']))==latest_year]
         if latest_year and not profile['segments'] and diagnostics['current'].get('revenue') is not None:
             revenue=next(o for o in reversed(obs) if o['period']==latest_year and o['metric']=='revenue')
-            profile['segments']=[{'name':'合并或主体总收入（未拆分业务）','value':revenue['value'],'source':revenue['source_id'],'kind':'Disclosed','period':latest_year}]
+            profile['segments']=[{'name':'合并或主体总收入（未拆分业务）','value':revenue['value'],'source':revenue['source_id'],'kind':'Disclosed','period':latest_year,'semantic_role':'consolidated_total'}]
         required={'revenue','gross_profit','operating_income','opex'}
         if diagnostics['years'] and required <= set(diagnostics['current']) and diagnostics['current']['revenue'] and profile['segments']:
             params=defaults(company,diagnostics['current'],profile['segments'])
