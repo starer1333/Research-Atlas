@@ -73,6 +73,7 @@ def build_company_map(semantic,industry_view):
 
     # Existing company-specific driver hypotheses remain distinct from industry templates.
     for d in semantic.get("drivers",[]):
+        if d.get("status")=="superseded":continue
         did="driver:"+d["id"]
         nodes.append(_node(did,"driver",d["name"],d.get("status","hypothesis"),d.get("source_ids",[]),{
             "driver_type":d.get("driver_type"),"model_parameter":d.get("model_parameter"),**d.get("metadata",{}),
