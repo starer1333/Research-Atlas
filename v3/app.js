@@ -81,7 +81,7 @@ function findings(s){const c=s.diagnostics.current,p=s.diagnostics.previous,r=s.
  if(r.cash_conversion!=null&&c.net_income>0&&r.cash_conversion<80)add('eq','Earnings quality','净利润向经营现金流的转化偏弱','CFO / Net income 约 '+fmt(r.cash_conversion,1)+'%。','单期偏低不等于利润失真，应先检查营运资金和非现金因素。','净利润和经营现金流为什么存在差异？',['营运资金','非现金费用','税费时点','业务组合'],['net_income','cfo','receivables','inventory','payables']);
  const seg=s.company.segments||[],revNow=c.revenue;if(seg.length&&revNow){const top=seg.reduce((a,b)=>a.value>b.value?a:b),share=top.value/revNow*100;if(share>=60)add('seg','Segment economics','收入集中在主要业务板块',top.name+' 约占当前收入 '+fmt(share,1)+'%。','集中度本身不是好坏判断，但该业务的需求、价格与竞争更重要。','主要业务板块的增长驱动是否可持续？',['终端需求','产品与价格','客户集中度','竞争与替代'],['revenue']);}
  return out.slice(0,5)}
-function nav(){$('[data-page]').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'))}
+function nav(){$$('[data-page]').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'))}
 function syncSlidingChrome(){
   requestAnimationFrame(()=>{
     const nav=document.querySelector('.rail nav');
