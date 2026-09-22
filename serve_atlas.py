@@ -25,7 +25,7 @@ def main():
     if args.enable_ai:
         try:ai_planner=ResearchPlanner(PlannerConfig.validate(args.ai_base_url,args.ai_api_key,args.ai_model))
         except PlannerError as e:raise SystemExit(str(e))
-    assets={'/':'v3-index.html','/index.html':'v3-index.html','/v3':'v3-index.html','/v3.css':'v3.css','/v3-charts.js':'v3-charts.js','/v3.js':'v3.js','/v2':'index.html','/workbench.css':'workbench.css','/workbench.js':'workbench.js','/workspace.js':'workspace.js','/workspace.css':'workspace.css','/themes.css':'themes.css'}
+    assets={'/':'v3-index.html','/index.html':'v3-index.html','/v3':'v3-index.html','/v3.css':'v3.css','/v3-liquid.css':'v3-liquid.css','/v3-charts.js':'v3-charts.js','/v3.js':'v3.js','/v2':'index.html','/workbench.css':'workbench.css','/workbench.js':'workbench.js','/workspace.js':'workspace.js','/workspace.css':'workspace.css','/themes.css':'themes.css'}
     assets.update({'/research.js':'research.js','/research.css':'research.css'})
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args):pass
