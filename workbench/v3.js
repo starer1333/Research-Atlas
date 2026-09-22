@@ -57,8 +57,15 @@ function cashSvg(rows){
 }
 function segments(){
   const seg=state.v3.business_map.segments||[],revenue=state.v3.trajectory.at(-1)?.revenue||Math.max(1,...seg.map(s=>s.value||0));
-  if(!seg.length)return '<div class="empty">当前档案没有业务分部结构；不会用推测补齐。</div>';
-  return '<div class="segment-list">'+seg.map(s=>{const pct=revenue?Math.max(0,(s.value||0)/revenue*100):0;return '<div class="segment-row"><div class="segment-name"><span>'+esc(s.name)+'</span><b>'+fmt(s.value)+' · '+fmt(pct,1)+'%</b></div><div class="segment-track"><div class="segment-fill" style="width:'+Math.min(100,pct)+'%"></div></div></div>'}).join('')+'</div>'
+  if(!seg.length)return '<div class="empty">当前档案没有可验证的业务分部候选；不会用推测补齐。</div>';
+  const numeric=seg.some(s=>s.value!=null);
+  if(numeric)return '<div class="segment-list">'+seg.map(s=>{const pct=revenue?Math.max(0,(s.value||0)/revenue*100):0;return '<div class="segment-row"><div class="segment-name"><span>'+esc(s.name)+'</span><b>'+fmt(s.value)+' · '+fmt(pct,1)+'%</b></div><div class="segment-track"><div class="segment-fill" style="width:'+Math.min(100,pct)+'%"></div></div></div>'}).join('')+'</div>';
+  return '<div class="source-list">'+seg.map(s=>'<div class="source-item"><div><h3>'+esc(s.name)+'</h3><p>'+esc(s.review_state||'pending_review')+' · '+esc(s.locator||'10-K business text')+'</p></div>'+(s.source?'<button data-source="'+esc(s.source)+'">Evidence</button>':'')+'</div>').join('')+'</div>'
+}
+function products(){
+  const rows=state.v3.business_map.products||[];
+  if(!rows.length)return '<div class="empty">没有从 10-K Item 1 明确列表中提取到 Product / Platform / Service 候选。</div>';
+  return '<div class="source-list">'+rows.map(p=>'<div class="source-item"><div><h3>'+esc(p.name)+'</h3><p>'+esc(p.category||'Product candidate')+' · '+esc(p.review_state||'pending_review')+'</p></div>'+((p.source_ids||[])[0]?'<button data-source="'+esc(p.source_ids[0])+'">Evidence</button>':'')+'</div>').join('')+'</div>'
 }
 function insightCard(f){
   const detail='<div class="insight-detail" id="detail-'+esc(f.id)+'" hidden><div><span class="eyebrow">WHY THIS MATTERS</span><p>'+esc(f.why)+'</p><p style="margin-top:8px;font-size:10px">Priority '+fmt(f.priority.total)+' = materiality '+fmt(f.priority.materiality)+' + divergence '+fmt(f.priority.divergence)+' + industry '+fmt(f.priority.industry_relevance)+' + evidence '+fmt(f.priority.evidence_quality)+' − gap '+fmt(f.priority.data_gap_penalty)+'</p></div><div><span class="eyebrow">POSSIBLE MECHANISMS</span><ul>'+f.possible_mechanisms.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div>';
@@ -93,8 +100,13 @@ function renderFinancials(){
   '<div class="grid-2"><div class="paper"><div class="chart-title"><h3>Operating Profit Bridge</h3><span>Waterfall logic</span></div>'+bridgeViz()+'<p style="font-size:10px;color:var(--muted)">这是会计分解，不等于商业因果。</p></div><div class="paper"><div class="chart-title"><h3>Prioritized findings</h3><span>'+fmt(state.v3.findings.length)+' signals</span></div><div class="insight-list">'+state.v3.findings.slice(0,3).map(insightCard).join('')+'</div></div></div>'
 }
 function renderBusiness(){
-  return sectionHead('BUSINESS & OPERATING DRIVERS','把产品/业务连接到财务','V3 P0 先展示可验证的分部与业务模型；行业 driver module 后续扩展。')+
-  '<div class="grid-2"><div class="paper">'+segments()+'</div><div class="paper"><span class="eyebrow">CONTEXT</span><div class="source-list">'+(state.company.market||[]).map(m=>'<div class="source-item"><div><h3>'+esc(m.title)+'</h3><p>'+esc(m.body)+'</p></div><button data-source="'+esc(m.source)+'">Evidence</button></div>').join('')+'</div></div></div>'
+  const b=state.v3.business_map||{},source=(b.business_source_ids||[])[0];
+  const filing='<div class="paper"><span class="eyebrow">10-K · ITEM 1 BUSINESS</span><h3 style="margin-top:8px">What the filing says</h3><p style="margin-top:8px;white-space:pre-line">'+esc(b.business_summary||'当前研究时点没有可用的 Item 1 Business 文本。')+'</p><p style="margin-top:8px;font-size:10px;color:var(--muted)">'+esc(b.business_review_state||'unavailable')+' · '+esc(b.business_extraction_method||'no extraction')+'</p>'+(source?'<button style="margin-top:10px" data-source="'+esc(source)+'">打开 10-K 来源</button>':'')+'</div>';
+  const seg='<div class="paper"><span class="eyebrow">SEGMENT CANDIDATES</span><h3 style="margin-top:8px">How the company says it is organized</h3><div style="margin-top:12px">'+segments()+'</div></div>';
+  const prod='<div class="paper"><span class="eyebrow">PRODUCT / PLATFORM CANDIDATES</span><h3 style="margin-top:8px">What it sells or offers</h3><div style="margin-top:12px">'+products()+'</div><p style="margin-top:10px;font-size:10px;color:var(--muted)">这些是规则提取候选，不等于已核验的产品主数据。</p></div>';
+  const context='<div class="paper"><span class="eyebrow">OPERATING CONTEXT</span><div class="source-list" style="margin-top:10px">'+(state.company.market||[]).map(m=>'<div class="source-item"><div><h3>'+esc(m.title)+'</h3><p>'+esc(m.body)+'</p></div><button data-source="'+esc(m.source)+'">Evidence</button></div>').join('')+'</div></div>';
+  return sectionHead('BUSINESS & OPERATING DRIVERS','把 10-K Business → Segment → Product 接到财务语义层','V3-6 使用确定性文本规则提取候选，并保留 source / locator / review state；不把词法候选伪装成事实。')+
+  '<div class="grid-2">'+filing+seg+'</div><div class="grid-2" style="margin-top:16px">'+prod+context+'</div>'
 }
 function cellValue(row,key){return row?.metric_checks?.[key]?.value}
 function renderPeerResult(){
