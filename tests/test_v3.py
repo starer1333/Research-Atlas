@@ -11,7 +11,7 @@ def test_v3_view_and_findings():
         state=store.state("NVDA","2025-03-01")
         assert "v3" in state
         view=state["v3"]
-        assert set(["summary","trajectory","findings","questions","source_coverage","data_integrity"]) <= set(view)
+        assert set(["summary","trajectory","findings","questions","source_coverage","data_integrity","company_map","industry_module"]) <= set(view)
         visible={o["id"] for o in state["observations"]}
         for finding in view["findings"]:
             assert set(finding["evidence_ids"]) <= visible
