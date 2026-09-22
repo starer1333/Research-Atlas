@@ -350,3 +350,123 @@ main{overflow-x:clip!important}
 @media(prefers-reduced-motion:reduce){
   #content{will-change:auto!important}
 }
+
+/* V3 interaction correction v2 — stationary page, sliding selection bars. */
+
+/* The page itself no longer travels horizontally.
+   Only selection bars glide; content softly resolves in place. */
+main{overflow-x:clip!important}
+#content{
+  position:relative;
+  transform:translateZ(0);
+  backface-visibility:hidden;
+  will-change:opacity,filter,transform;
+  view-transition-name:none!important
+}
+::view-transition-old(root),::view-transition-new(root),
+::view-transition-old(atlas-content),::view-transition-new(atlas-content){animation:none!important}
+#content.is-entering>.page-intro,#content.is-entering>.metrics-row,#content.is-entering>.section,#content.is-entering>.subnav,
+#content.is-entering>.hero,#content.is-entering>.metrics{animation:none!important}
+
+/* Sidebar: one quiet translucent selection plate glides between rows. */
+.v3-rail nav{
+  position:relative!important;
+  --nav-indicator-y:0px;
+  --nav-indicator-h:50px;
+  --nav-indicator-o:0;
+}
+.v3-rail nav::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  left:0;right:0;top:0;
+  height:var(--nav-indicator-h);
+  transform:translate3d(0,var(--nav-indicator-y),0);
+  opacity:var(--nav-indicator-o);
+  border-radius:15px;
+  background:rgba(255,255,255,.46);
+  border:1px solid rgba(255,255,255,.66);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.76);
+  transition:
+    transform .52s cubic-bezier(.22,1,.36,1),
+    height .38s cubic-bezier(.22,1,.36,1),
+    opacity .18s ease;
+  pointer-events:none;
+}
+.v3-rail nav button{
+  position:relative!important;
+  z-index:1!important;
+}
+.v3-rail nav button[aria-current="page"]{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
+
+/* Analysis segmented control: only the light horizontal pill slides. */
+.subnav{
+  position:relative!important;
+  isolation:isolate;
+  --sub-indicator-x:4px;
+  --sub-indicator-w:92px;
+  --sub-indicator-o:0;
+}
+.subnav::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  top:4px;bottom:4px;left:0;
+  width:var(--sub-indicator-w);
+  transform:translate3d(var(--sub-indicator-x),0,0);
+  opacity:var(--sub-indicator-o);
+  border-radius:12px;
+  background:rgba(255,255,255,.67);
+  box-shadow:0 4px 12px rgba(51,93,105,.08),inset 0 1px 0 rgba(255,255,255,.70);
+  transition:
+    transform .48s cubic-bezier(.22,1,.36,1),
+    width .38s cubic-bezier(.22,1,.36,1),
+    opacity .18s ease;
+  pointer-events:none;
+}
+.subnav button{position:relative!important;z-index:1!important}
+.subnav button[aria-current="page"]{
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+/* Finding separation: no vertical rail, no grey/brown marker.
+   Separation comes from spacing + horizontal rules + semantic text/chip color. */
+.insight{
+  padding:24px 0!important;
+  border-radius:0!important;
+  border-top:1px solid rgba(16,20,23,.11)!important;
+  box-shadow:none!important;
+}
+.insight:first-child{border-top:0!important}
+.insight:before{display:none!important;content:none!important}
+.insight .eyebrow:before{display:none!important;content:none!important}
+.insight:hover{
+  padding-left:0!important;
+  background:rgba(255,255,255,.13)!important;
+}
+.insight[data-severity="high"] .eyebrow{color:#26775d!important}
+.insight[data-severity="watch"] .eyebrow{color:#9b5968!important}
+.insight[data-severity="high"] .signal{
+  background:rgba(130,220,180,.30)!important;
+  border-color:rgba(130,220,180,.55)!important;
+}
+.insight[data-severity="watch"] .signal{
+  background:rgba(238,184,195,.34)!important;
+  border-color:rgba(238,184,195,.62)!important;
+}
+
+/* Explicitly neutralize the old brown/grey marker sources. */
+:root{
+  --warning:#9b5968!important;
+  --line-strong:rgba(16,20,23,.16)!important;
+}
+
+@media(prefers-reduced-motion:reduce){
+  #content{will-change:auto!important}
+  .v3-rail nav::before,.subnav::before{transition:none!important}
+}
