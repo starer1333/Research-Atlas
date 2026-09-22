@@ -73,6 +73,7 @@ def handle(store,route,p):
             if linked_question.get('question','').strip()!=p['question'].strip():raise ValidationError('Claim question 与 question_id 指向的研究问题不一致')
         supporting=evidence(s,p.get('supporting_evidence_ids',p.get('evidence_ids',[])),'supporting evidence')
         counter=evidence(s,p.get('counter_evidence_ids',[]),'counter evidence')
+        if question_id and not (supporting or counter):raise ValidationError('挂接 Research Question 的 Claim 至少需要一条明确 evidence')
         if set(supporting)&set(counter):raise ValidationError('同一 observation 不能同时作为支持证据与反证')
         evidence_sources={o['source_id'] for o in s['observations'] if o['id'] in set(supporting+counter)}
         if evidence_sources-set(p['source_ids']):raise ValidationError('Claim 的 source_ids 必须覆盖全部支持证据与反证来源')
