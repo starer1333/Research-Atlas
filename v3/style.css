@@ -72,3 +72,21 @@ footer{border-top:1px solid var(--line);padding:16px 32px;display:flex;justify-c
 @media(max-width:900px){.rail{display:none}.app{margin:0}.topbar{padding:0 18px;height:60px}.topbar small{display:none}main{padding:24px 18px 88px}.hero{grid-template-columns:1fr;gap:16px}.coverage{border-left:0;border-top:1px solid var(--line);padding:14px 0 0}.section-head{grid-template-columns:1fr;gap:9px}.section-head p{justify-self:start}.grid2{grid-template-columns:1fr}.grid2>.card:first-child{padding-right:0;padding-bottom:26px}.grid2>.card:nth-child(2){padding-left:0;padding-top:26px;border-left:0;border-top:1px solid var(--line)}.metrics{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0;margin-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.mobile{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.92);border-top:1px solid var(--line);z-index:5;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}.mobile button{border:0;background:transparent;padding:14px 3px;font-size:9px}.mobile button[aria-current=page]{font-weight:700;color:var(--accent)}footer{padding:15px 18px}.detail{grid-template-columns:1fr}.chart-canvas{height:255px}}
 @media(max-width:620px){.metrics{grid-template-columns:1fr}.metric{border-right:0!important;margin-right:0!important;border-bottom:1px solid var(--line)}.hero h1{font-size:46px}.question{grid-template-columns:28px 1fr}.question button{grid-column:2}.driver-grid{grid-template-columns:1fr}.company-map{display:grid;overflow:visible}.map-layer{min-width:0}.planner-head{display:block}.ai-badge{display:inline-block;margin-top:10px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+
+
+/* Readability floor — no microtype below 12px in the public preview. */
+:root{--type-caption:12px;--type-secondary:13px;--type-body:15px}
+.brand small,.picker label,.picker p,.rail nav button span,.rail nav button small,.rail-foot,
+.topbar b,.topbar small,.notice,.eyebrow,.coverage p,.metric small,.chart-title span,
+.chart-unavailable,.actions button,.linkbtn,.question span,.candidate-row small,.candidate-tag,
+.source-meta small,.map-node small,.map-boundary,.driver-status,.driver-card p,.driver-card dl,
+.source p,.integrity summary,.gate ul,.peer,.empty,.timeline p,.ai-badge,.planner-boundaries span,
+.planner-shell small,.ev dl,footer,.mobile button{font-size:var(--type-caption)!important}
+.picker p,.rail nav button small,.section-head p,.finding p,.detail ul,.business-copy,
+.driver-card p,.source p,.gate ul,.planner-shell>p{font-size:var(--type-secondary)!important}
+.hero p{font-size:var(--type-body)!important}
+.rail nav button b{font-size:14px!important}
+.topbar span{font-size:17px!important}
+.metric b{font-size:28px!important}
+.finding h3{font-size:19px!important}
+.question b{font-size:14px!important}
