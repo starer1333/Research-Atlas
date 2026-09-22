@@ -68,7 +68,9 @@ def handle(store,route,p):
         model_id=p.get('model_id')
         if model_id:record(s,model_id,'driver')
         question_id=p.get('question_id')
-        if question_id:record(s,question_id,'question')
+        if question_id:
+            linked_question=record(s,question_id,'question')['content']
+            if linked_question.get('question','').strip()!=p['question'].strip():raise ValidationError('Claim question 与 question_id 指向的研究问题不一致')
         supporting=evidence(s,p.get('supporting_evidence_ids',p.get('evidence_ids',[])),'supporting evidence')
         counter=evidence(s,p.get('counter_evidence_ids',[]),'counter evidence')
         if set(supporting)&set(counter):raise ValidationError('同一 observation 不能同时作为支持证据与反证')
