@@ -1,7 +1,7 @@
 """Transform SEC EDGAR payloads into a conservative V3 Starter Research Pack."""
 from datetime import datetime,timezone
 
-SCHEMA_VERSION="3.3"
+SCHEMA_VERSION="3.4"
 CORE_TAGS={
  "revenue":["RevenueFromContractWithCustomerExcludingAssessedTax","Revenues","SalesRevenueNet"],
  "cost":["CostOfRevenue","CostOfGoodsAndServicesSold","CostOfGoodsSold"],
