@@ -45,7 +45,7 @@ async function openCompanyQuery(query=$('#companySearch').value.trim()){
   }catch(e){showError(e.message);$('#status').textContent='SEC Starter Pack 建立失败'}
 }
 function setNav(){
-  $('[data-page]').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
+  $$('[data-page]').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
 }
 function syncSlidingChrome(){
   requestAnimationFrame(()=>{
