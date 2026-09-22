@@ -1,4 +1,4 @@
-# Research Atlas｜公司与产业研究工作台
+# Research Atlas V3｜Guided Company Research Workbench\n\n**V3 development branch:** `feature/research-workbench-v3`. This branch keeps the V2 deterministic backend and research-memory logic, but replaces the default local UI with a four-page guided flow: **Research / Evidence / Analysis / Report**. The previous V2 interface remains available at `/v2`. See [V3 product contract](docs/v3-product-contract.md).\n\nV3 foundation deliberately does **not** claim automatic SEC ingestion yet. Current company search uses the existing curated point-in-time fixtures; EdgarTools/SEC source discovery is the next data-engineering slice.\n\n---\n\n# Research Atlas｜公司与产业研究工作台
 
 面向有财务基础的初级研究者。把证据、经营假设、计算与研究修订连接起来。
 

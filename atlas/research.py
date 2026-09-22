@@ -3,7 +3,7 @@ import json,uuid
 from .engine import ValidationError,valid_date
 from . import drivers,extraction
 
-ROUTES={'driver-defaults','driver-calculate','driver-save','driver-diff','comparison-save','business-note','research-save','extraction-draft','extraction-review','extraction-import'}
+ROUTES={'driver-defaults','driver-calculate','driver-save','driver-diff','comparison-save','business-note','question-save','research-save','extraction-draft','extraction-review','extraction-import'}
 
 def required(p,keys):
     for k in keys:
@@ -45,7 +45,7 @@ def handle(store,route,p):
         result={k:p[k] for k in ['subject','dimension','observation','mechanism','alternative','trigger','level','peer','source_ids','peer_source_ids','asof']}
         result.update(company_ids=[company,peer],kind='Research interpretation',documents=s['documents']+peer_state['documents'])
         return {'id':store.save_record(company,'business-note',result)}
-    if route=='research-save':
+    if route=='question-save':\n        required(p,['question','reason']);sources(s,p.get('source_ids'))\n        evidence_ids=p.get('evidence_ids',[])\n        visible={o['id'] for o in s['observations']}\n        if not isinstance(evidence_ids,list) or not set(evidence_ids)<=visible:raise ValidationError('研究问题引用了当前研究时点不可用的 evidence')\n        if p.get('status','open') not in ['open','investigating','answered','archived']:raise ValidationError('无效研究问题状态')\n        result={k:p.get(k) for k in ['question','reason','finding_id','evidence_ids','source_ids','asof']}\n        result['status']=p.get('status','open')\n        result['kind']='Research question; not a conclusion'\n        return {'id':store.save_record(company,'question',result)}\n    if route=='research-save':
         required(p,['question','conclusion','alternative','next_evidence','change_reason']);sources(s,p.get('source_ids'))
         if p.get('status') not in ['open','supported','challenged','withdrawn']:raise ValidationError('选择研究判断状态')
         parent=p.get('parent_id')

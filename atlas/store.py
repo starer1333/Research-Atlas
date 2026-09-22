@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from .seed import COMPANIES,DOCUMENTS,observations,DEMO_UPDATE
 from .engine import diagnose,defaults,scenario_set,ValidationError,valid_date,number,evaluate_forecast
 from .relations import METRICS,dashboard,reconcile
-from .peer_seed import AMD_PROFILE,AMD_DOC,AMD_DATA,CALCULATED,DIFFERENTIATION
+from .peer_seed import AMD_PROFILE,AMD_DOC,AMD_DATA,CALCULATED,DIFFERENTIATION\nfrom .v3 import build_v3_view
 
 def now():return datetime.now(timezone.utc).isoformat()
 def encode(x):return json.dumps(x,ensure_ascii=False,allow_nan=False)
@@ -107,7 +107,7 @@ class Store:
         checks=dashboard(periods,profile,obs)
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
-        return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；预置研究问题由 AI 起草，尚未人工确认。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        v3=build_v3_view(profile,diagnostics,periods,obs,docs,checks)\n        return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'v3':v3,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings 与 suggested questions 来自确定性规则。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
     def calculate(self,company,asof,params):
         s=self.state(company,asof)
         if not s['diagnostics']['years']:raise ValidationError('截至研究日期没有可用的年度输入')
