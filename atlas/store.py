@@ -6,7 +6,8 @@ from contextlib import contextmanager
 from .seed import COMPANIES,DOCUMENTS,observations,DEMO_UPDATE
 from .engine import diagnose,defaults,scenario_set,ValidationError,valid_date,number,evaluate_forecast
 from .relations import METRICS,dashboard,reconcile
-from .peer_seed import AMD_PROFILE,AMD_DOC,AMD_DATA,CALCULATED,DIFFERENTIATION\nfrom .v3 import build_v3_view
+from .peer_seed import AMD_PROFILE,AMD_DOC,AMD_DATA,CALCULATED,DIFFERENTIATION
+from .v3 import build_v3_view
 
 def now():return datetime.now(timezone.utc).isoformat()
 def encode(x):return json.dumps(x,ensure_ascii=False,allow_nan=False)
@@ -107,7 +108,8 @@ class Store:
         checks=dashboard(periods,profile,obs)
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
-        v3=build_v3_view(profile,diagnostics,periods,obs,docs,checks)\n        return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'v3':v3,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings 与 suggested questions 来自确定性规则。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        v3=build_v3_view(profile,diagnostics,periods,obs,docs,checks)
+        return {'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'v3':v3,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings 与 suggested questions 来自确定性规则。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
     def calculate(self,company,asof,params):
         s=self.state(company,asof)
         if not s['diagnostics']['years']:raise ValidationError('截至研究日期没有可用的年度输入')
@@ -258,7 +260,9 @@ class Store:
         lines += ['## 财务诊断',json.dumps(s['diagnostics'],ensure_ascii=False,indent=2),'## 勾稽与输入',json.dumps(s['relations'],ensure_ascii=False,indent=2),json.dumps(s['observations'],ensure_ascii=False,indent=2),'## 研究记录（含操作时间；不代表全部在研究时点已存在）']
         for r in s['records']:lines += [f"### {r['kind']} / {r['created_at']} / 待复核={bool(r['stale'])}",json.dumps(r['content'],ensure_ascii=False,indent=2)]
         lines += ['## 限制','数据由 AI 辅助录入并保留用户审核状态。当前模型为简化经营预测，默认参数是研究练习假设，未完成完整三表、同行和市场规模覆盖。']
-        return '\n\n'.join(lines)
+        return '
+
+'.join(lines)
 
     def theme(self):
         with self.connect() as db:r=db.execute('SELECT content FROM settings WHERE key=?',('theme',)).fetchone()
