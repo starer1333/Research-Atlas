@@ -1,7 +1,0 @@
-upstream/
-.runtime/
-.env*
-!.env.example
-__pycache__/
-*.pyc
-private/

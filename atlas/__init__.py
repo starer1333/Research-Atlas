@@ -1,1 +1,0 @@
-"""Research Atlas local engine."""
