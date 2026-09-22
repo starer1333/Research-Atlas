@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Research Atlas V3 — Guided Company Research</title>
+<link rel="stylesheet" href="v3.css">
+<script defer src="v3.js"></script>
+</head>
+<body>
+<aside class="v3-rail">
+  <a class="v3-brand" href="#research" aria-label="Research Atlas">
+    <span class="brand-mark">RA</span>
+    <span><b>Research Atlas</b><small>Evidence before conviction</small></span>
+  </a>
+  <div class="company-picker">
+    <label for="companySearch">公司 / Ticker</label>
+    <div class="search-row"><input id="companySearch" list="companyList" autocomplete="off" placeholder="NVIDIA / NVDA"><button id="openCompany">打开</button></div>
+    <datalist id="companyList"></datalist>
+    <p id="companyHint">从已有研究案例开始；启用 SEC SourceAdapter 后可直接输入新的美国上市公司 ticker。</p>
+  </div>
+  <nav aria-label="V3 主导航">
+    <button data-page="research" aria-current="page"><span>01</span><b>Research</b><small>公司是什么？值得研究什么？</small></button>
+    <button data-page="evidence"><span>02</span><b>Evidence</b><small>事实从哪里来？</small></button>
+    <button data-page="analysis"><span>03</span><b>Analysis</b><small>发生了什么，为什么？</small></button>
+    <button data-page="report"><span>04</span><b>Report</b><small>我现在怎么看？</small></button>
+  </nav>
+  <div class="rail-foot">
+    <span class="eyebrow">V3 FOUNDATION</span>
+    <p>Simple surface · deep logic</p>
+    <a href="/v2">打开旧版 V2 工作区 ↗</a>
+  </div>
+</aside>
+
+<div class="v3-app">
+  <header class="v3-topbar">
+    <div class="company-context"><span id="companyTicker">—</span><b id="companyName">Research Atlas</b><span id="companySubtitle"></span></div>
+    <div class="top-actions"><label>研究截至 <input id="asof" type="date" value="2025-03-01"></label><button id="exportButton" class="quiet">导出研究包</button></div>
+  </header>
+
+  <main>
+    <div id="status" class="status-line" role="status">正在建立研究视图…</div>
+    <div id="error" class="error-box" role="alert" hidden></div>
+    <section id="nextStep" class="next-step" hidden></section>
+    <div id="content"></div>
+  </main>
+
+  <footer><span>Research Atlas V3</span><span>公开披露 · 可复核计算 · 可检验判断</span><span id="storageState">SQLite local</span></footer>
+</div>
+
+<dialog id="evidenceDrawer" aria-labelledby="drawerTitle">
+  <div class="drawer-head"><div><span class="eyebrow">EVIDENCE</span><h2 id="drawerTitle">来源</h2></div><button id="closeDrawer" aria-label="关闭证据面板">×</button></div>
+  <div id="drawerBody" class="drawer-body"></div>
+</dialog>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<nav class="mobile-nav" aria-label="移动端主导航">
+  <button data-page="research">Research</button>
+  <button data-page="evidence">Evidence</button>
+  <button data-page="analysis">Analysis</button>
+  <button data-page="report">Report</button>
+</nav>
+</body>
+</html>

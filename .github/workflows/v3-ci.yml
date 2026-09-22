@@ -1,0 +1,37 @@
+name: V3 CI
+
+on:
+  push:
+    branches:
+      - feature/research-workbench-v3
+  pull_request:
+    branches:
+      - feature/research-workbench-v2
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Python syntax
+        run: python -m compileall -q atlas serve_atlas.py
+      - name: V3 semantic contract
+        run: python -B tests/test_semantic.py
+      - name: V3 SEC starter transform
+        run: python -B tests/test_sec_starter.py
+      - name: V3 10-K filing-text semantics
+        run: python -B tests/test_filing_text.py
+      - name: V3 guided workflow
+        run: python -B tests/test_v3.py
+      - name: Existing research tests
+        run: python -B tests/test_research.py
+      - name: Existing workbench tests
+        run: python -B tests/test_workbench.py
+      - name: Legacy deterministic model tests
+        run: node --test tests/model.test.cjs
