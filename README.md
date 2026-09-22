@@ -84,6 +84,43 @@ Each module defines operating drivers, linked financial metrics, operating KPIs 
 
 **Industry drivers are research templates, not company facts.**
 
+### V3-9 — Richer Chart Grammar / Apache ECharts
+
+V3 now exposes an explicit visualization contract from `atlas/visualization.py` and renders supported analytical views with **Apache ECharts 6.1** in `workbench/v3-charts.js`.
+
+Current grammar includes:
+
+- Revenue × Operating Margin dual-axis trajectory
+- CFO / Receivables / Inventory working-capital relationship view
+- numeric Segment mix donut
+- Operating Profit accounting bridge
+- qualified peer visualization behind the comparability gate
+- calculated scenario trajectories
+
+Charts follow the same evidence rules as the rest of Research Atlas: **missing is not zero; calculated is not disclosed; candidate is not verified.** Motion is restrained and respects `prefers-reduced-motion`.
+
+### V3-10 — Optional AI Research Planner
+
+Implemented in `atlas/planner.py`.
+
+The planner is deliberately outside the deterministic evidence / finance core. It may suggest:
+
+- research questions
+- evidence to seek
+- counter-evidence to seek
+- investigation steps
+
+It cannot write observations, calculate finance, mark evidence verified, create final claims automatically, or issue investment recommendations. Model output is labelled `ai_suggested / not_verified`, unknown evidence/source IDs are dropped, and nothing is persisted until the user explicitly saves a question.
+
+AI networking is **off by default**. To enable an OpenAI-compatible endpoint:
+
+```powershell
+$env:ATLAS_AI_BASE_URL="https://api.example.com/v1"
+$env:ATLAS_AI_API_KEY="..."
+$env:ATLAS_AI_MODEL="your-model"
+python -B serve_atlas.py --enable-ai
+```
+
 ## Research integrity
 
 Research Atlas keeps these distinctions explicit:
@@ -137,13 +174,16 @@ The adapter only uses fixed official SEC domains. Imported observations and fili
 | `atlas/sources/` | SourceAdapter, SEC Company Facts and 10-K intake |
 | `atlas/company_map.py` | V3-7 Company / Product Map |
 | `atlas/industries.py` | V3-8 Industry Driver Modules |
+| `atlas/visualization.py` | V3-9 chart grammar / visualization contract |
+| `atlas/planner.py` | V3-10 optional grounded AI research planner |
 | `atlas/v3.py` | guided view + deterministic findings |
 | `atlas/relations.py` | accounting relationships and comparability |
 | `atlas/drivers.py` | deterministic hardware/software scenario mechanics |
 | `atlas/store.py` | SQLite persistence and point-in-time state |
 | `workbench/v3-index.html` | V3 shell |
 | `workbench/v3.js` | Research / Evidence / Analysis / Report interactions |
-| `workbench/v3.css` | V3 visual system |
+| `workbench/v3-charts.js` | Apache ECharts rendering layer |
+| `workbench/v3.css` | V3 visual system, color, motion and responsive interaction |
 
 ## Validation
 
@@ -156,6 +196,7 @@ python -B tests/test_filing_text.py
 python -B tests/test_v3.py
 python -B tests/test_company_map.py
 python -B tests/test_industries.py
+python -B tests/test_planner.py
 python -B tests/test_research.py
 python -B tests/test_workbench.py
 node --test tests/model.test.cjs
@@ -166,10 +207,9 @@ node --test tests/model.test.cjs
 - complete Customer / Competitor / pricing / strategy extraction
 - note-level segment-table parsing across all issuers
 - Docling/PDF intake
-- external LLM/RAG
+- autonomous multi-agent / full-document RAG research execution
 - full three-statement forecasting for every industry
 - bank-specific valuation engine
-- production ECharts visualization layer
 - multi-user cloud authentication
 - automatic investment recommendations or company scores
 
@@ -184,9 +224,11 @@ Research Atlas studies architecture and interaction ideas from FinRobot, OpenBB,
 - [V3 SourceAdapter / SEC](docs/v3-source-adapters.md)
 - [V3-7 Company / Product Map](docs/v3-company-map.md)
 - [V3-8 Industry Driver Modules](docs/v3-industry-modules.md)
+- [V3-9 Visualization Grammar](docs/v3-visualization-grammar.md)
+- [V3-10 Optional AI Research Planner](docs/v3-ai-planner.md)
 - [Security boundary](docs/security.md)
 - [V2.2 historical release notes](docs/v22-release.md)
 
 ## Legacy
 
-V0.1 and V2 remain in the repository for design history and regression compatibility. V3 is the current product direction.
+V0.1 and V2 remain in the repository for design history and regression compatibility. V3 is the current product direction. V3-9/10 complete the planned visualization + optional-intelligence layer while preserving the deterministic core.
