@@ -73,6 +73,14 @@ class ResearchTests(unittest.TestCase):
         p={'question':'Why cash?','conclusion':'Open question','alternative':'Timing','next_evidence':'AR detail','change_reason':'Start research','status':'open','source_ids':['nv-fy25']}
         old=self.call('research-save',**p)['id'];new=self.call('research-save',**{**p,'parent_id':old,'status':'challenged','conclusion':'New explanation'})['id']
         rows=self.store.state('NVDA','2025-03-01')['records'];self.assertEqual(next(r for r in rows if r['id']==old)['content']['conclusion'],'Open question');self.assertNotEqual(old,new)
+    def test_claim_question_and_evidence_contract_rejects_mismatch(self):
+        q=self.call('question-save',question='Why cash?',reason='Investigate cash conversion',finding_id=None,evidence_ids=['NVDA-FY2025-cfo'],source_ids=['nv-fy25'],status='open')['id']
+        base={'question':'Why cash?','question_id':q,'conclusion':'Timing explains part of the gap','alternative':'Working capital','next_evidence':'Receivables detail','change_reason':'Initial claim','status':'supported','supporting_evidence_ids':['NVDA-FY2025-cfo'],'counter_evidence_ids':['NVDA-FY2025-receivables'],'source_ids':['nv-fy25']}
+        self.call('research-save',**base)
+        with self.assertRaises(ValidationError):self.call('research-save',**{**base,'question':'Different question'})
+        with self.assertRaises(ValidationError):self.call('research-save',**{**base,'counter_evidence_ids':['NVDA-FY2025-cfo']})
+        with self.assertRaises(ValidationError):self.call('research-save',**{**base,'source_ids':['nv-fy25'],'counter_evidence_ids':['NVDA-FY2025-receivables'],'supporting_evidence_ids':['AMD-FY2024-cfo']})
+
     def test_research_memory_respects_record_asof_and_keeps_all_time_history(self):
         early=self.call('question-save',question='Early question',reason='Visible at early as-of',finding_id=None,evidence_ids=[],source_ids=['nv-fy25'],status='open')['id']
         self.call('import-example')
