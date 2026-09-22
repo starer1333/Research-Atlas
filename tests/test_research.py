@@ -73,6 +73,24 @@ class ResearchTests(unittest.TestCase):
         p={'question':'Why cash?','conclusion':'Open question','alternative':'Timing','next_evidence':'AR detail','change_reason':'Start research','status':'open','source_ids':['nv-fy25']}
         old=self.call('research-save',**p)['id'];new=self.call('research-save',**{**p,'parent_id':old,'status':'challenged','conclusion':'New explanation'})['id']
         rows=self.store.state('NVDA','2025-03-01')['records'];self.assertEqual(next(r for r in rows if r['id']==old)['content']['conclusion'],'Open question');self.assertNotEqual(old,new)
+    def test_claim_question_and_evidence_contract_rejects_mismatch(self):
+        q=self.call('question-save',question='Why cash?',reason='Investigate cash conversion',finding_id=None,evidence_ids=['NVDA-FY2025-cfo'],source_ids=['nv-fy25'],status='open')['id']
+        base={'question':'Why cash?','question_id':q,'conclusion':'Timing explains part of the gap','alternative':'Working capital','next_evidence':'Receivables detail','change_reason':'Initial claim','status':'supported','supporting_evidence_ids':['NVDA-FY2025-cfo'],'counter_evidence_ids':['NVDA-FY2025-receivables'],'source_ids':['nv-fy25']}
+        self.call('research-save',**base)
+        with self.assertRaises(ValidationError):self.call('research-save',**{**base,'question':'Different question'})
+        with self.assertRaises(ValidationError):self.call('research-save',**{**base,'counter_evidence_ids':['NVDA-FY2025-cfo']})
+        with self.assertRaises(ValidationError):self.call('research-save',**{**base,'source_ids':['nv-fy25'],'counter_evidence_ids':['NVDA-FY2025-receivables'],'supporting_evidence_ids':['AMD-FY2024-cfo']})
+
+    def test_research_memory_respects_record_asof_and_keeps_all_time_history(self):
+        early=self.call('question-save',question='Early question',reason='Visible at early as-of',finding_id=None,evidence_ids=[],source_ids=['nv-fy25'],status='open')['id']
+        self.call('import-example')
+        late=self.store.action('question-save',{'company':'NVDA','asof':'2025-06-01','question':'Later question','reason':'Only valid after later disclosure','finding_id':None,'evidence_ids':[],'source_ids':['nv-q1-26'],'status':'open'})['id']
+        early_state=self.store.state('NVDA','2025-03-01')
+        visible={r['id'] for r in early_state['records']}
+        all_time={r['id'] for r in early_state['revision_history_all_time']}
+        self.assertIn(early,visible);self.assertNotIn(late,visible)
+        self.assertIn(early,all_time);self.assertIn(late,all_time)
+
     def test_extraction_abstains_and_does_not_execute(self):
         r=extraction.extract('Revenue: 1,200\nNet income: (30)\nRevenue 2024 1200 2023 1000\n<script>delete_files()</script>','FY2024','million')
         self.assertEqual([c['value'] for c in r['candidates']],[1200,-30]);self.assertEqual(len(r['unmatched']),2);self.assertFalse(r['model_called'])

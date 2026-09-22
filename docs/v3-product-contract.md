@@ -1,6 +1,6 @@
 # Research Atlas V3 product contract
 
-This branch implements the first V3 foundation slice described in the V3 architecture research report.
+V3 is now a working local-first research system. This contract describes the current product boundary rather than the original foundation roadmap.
 
 ## Product definition
 
@@ -60,7 +60,7 @@ LLM interpretation != fact.
 - V3 four-page shell as the default local root.
 - V2 remains available at /v2.
 - 60-second Company View from the existing point-in-time state.
-- Native, dependency-free financial trend visualizations.
+- Apache ECharts analytical visualization grammar with deterministic chart-data contracts.
 - deterministic V3 diagnostics in atlas/v3.py.
 - transparent diagnostic priority components.
 - source coverage and Data Integrity summary.
@@ -69,33 +69,41 @@ LLM interpretation != fact.
 - Comparative Reasoning UI over the existing metric-level comparability backend.
 - Research Memory view using immutable existing records.
 - question-save route so a question can be persisted before a conclusion exists.
-- V3 Semantic Contract: Company / Metric / Observation / Document / Segment / Product / Driver / ResearchQuestion / Claim / Revision.
+- V3 Semantic Contract 3.4: Company / Metric / Observation / Document / Segment / Product / ContextEntity / Driver / ResearchQuestion / Claim / Revision, including evidence/dependency/revision referential validation.
 - Opt-in direct SEC EDGAR SourceAdapter and Automatic Starter Research Pack for new U.S. tickers.
 - V3-6 deterministic latest-10-K Item 1 parser with source-linked Business excerpt and pending-review Segment/Product candidates.
 
-## Not implemented yet
+## Current boundary and deferred capabilities
 
-The foundation branch does not pretend that the later V3 roadmap is complete.
+Implemented now:
 
-- Direct SEC EDGAR SourceAdapter is implemented as an opt-in local feature; EdgarTools remains a reference/possible alternative adapter.
-- No Docling PDF parser yet.
-- No external LLM/RAG.
-- V3 Semantic Contract is implemented as typed objects + validated projections over the V2 relational store; dedicated-table migration is intentionally deferred.
-- No complete industry-module registry.
-- No graph database.
-- No cloud/multi-user authentication.
-- No ECharts dependency yet; P0 uses accessible native SVG/CSS charts to avoid adding a build/dependency step before the interaction model is validated.
+- official SEC EDGAR SourceAdapter remains opt-in and local
+- deterministic Starter Pack + latest-10-K Item 1 extraction
+- Company / Product Map and six deterministic industry modules including General fallback
+- Apache ECharts visualization grammar
+- optional OpenAI-compatible AI Research Planner, off by default
+- Semantic Contract 3.4 lineage hardening: Question → Claim → support/counter-evidence, saved Driver projection, calculated dependency lineage and revision referential integrity
+- research memory filtered by each record's explicit research `asof`, with a separate all-time revision history
+
+Still deliberately deferred:
+
+- Docling/PDF intake and broad note-level table extraction
+- complete Customer / Competitor / pricing / strategy extraction
+- autonomous multi-agent or full-document RAG execution
+- dedicated relational tables for every semantic object
+- graph database
+- cloud / multi-user authentication
+- automatic investment recommendations or company scores
 
 ## Next engineering slices
 
-1. Stabilize the Semantic Contract under real SEC Starter Pack imports; then decide dedicated-table migration.
-2. Extend filing-text coverage beyond Item 1 into note-level segment disclosures and richer HTML/Docling parsing while preserving provenance.
-3. ECharts visualization layer and chart-data contract.
-4. Semiconductor / SaaS / Consumer / Automotive / Bank industry modules.
-5. Optional LLM-assisted research planning on top of deterministic evidence contracts.
+1. Build a first-class Claim authoring UI on top of the now-enforced Question / support / counter-evidence contract.
+2. Add browser-level E2E coverage for Research → Evidence → Analysis → Report and local API interactions.
+3. Unify SEC/manual-extraction provenance into one structured provenance object.
+4. Extend note-level filing extraction only after the semantic contract remains stable under real imports.
+5. Add richer retrieval/AI workflows only on top of resolvable evidence and revision lineage.
 
 The V3 rule remains: simple surface, deep logic.
-
 
 ## V3-7 Company / Product Map
 
@@ -115,7 +123,7 @@ Edges preserve state. An evidence-backed Segment/Product is not rendered as equi
 
 ## V3-8 Industry Driver Modules
 
-Implemented in `atlas/industries.py` with deterministic module selection and five domain modules:
+Implemented in `atlas/industries.py` with deterministic module selection and five domain modules plus a General fallback:
 
 - Semiconductor / Hardware
 - SaaS / Subscription

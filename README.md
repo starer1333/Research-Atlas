@@ -65,7 +65,7 @@ Company
 
 The map distinguishes evidence-backed objects, research hypotheses and industry templates. Products without a verified Segment mapping stay explicitly `unlinked_segment`; the system does not guess.
 
-Semantic Contract 3.3 also adds `ContextEntity` for Customer, Competitor, Geography, Channel and Risk evidence.
+Semantic Contract 3.4 also adds `ContextEntity` for Customer, Competitor, Geography, Channel and Risk evidence.
 
 ### V3-8 — Industry Driver Modules
 
@@ -132,6 +132,9 @@ Research Atlas keeps these distinctions explicit:
 - comparable vs qualified vs not directly comparable
 - ResearchQuestion vs Claim
 - current view vs Revision
+- supporting evidence vs counter-evidence
+- active Driver hypothesis vs superseded Driver revision
+- research-as-of memory vs all-time revision history
 
 The system does not treat a balanced accounting equation as evidence of business quality and does not turn an anomaly into an investment conclusion.
 
@@ -170,7 +173,7 @@ The adapter only uses fixed official SEC domains. Imported observations and fili
 
 | Path | Responsibility |
 |---|---|
-| `atlas/semantic.py` | Semantic Contract 3.3 |
+| `atlas/semantic.py` | Semantic Contract 3.4 |
 | `atlas/sources/` | SourceAdapter, SEC Company Facts and 10-K intake |
 | `atlas/company_map.py` | V3-7 Company / Product Map |
 | `atlas/industries.py` | V3-8 Industry Driver Modules |
