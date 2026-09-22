@@ -67,7 +67,7 @@ class Store:
         if not re.fullmatch(r'[A-Z0-9][A-Z0-9._-]{0,31}',ticker) or not name:raise ValidationError('填写公司名称与唯一代码（字母、数字、点、横线，最多 32 字符）')
         mode=p.get('mode','general');currency=p.get('currency','USD');basis=p.get('basis','GAAP');scope=p.get('scope','consolidated')
         if str(p.get('industry','')).strip().lower()=='financial':mode='financial'
-        if mode not in ['general','hardware','software','consumer','healthcare','internet','financial']:raise ValidationError('未知分析模板')
+        if mode not in ['general','hardware','software','consumer','healthcare','internet','automotive','financial']:raise ValidationError('未知分析模板')
         if currency not in ['USD','CNY','EUR','HKD','JPY','GBP'] or basis not in ['GAAP','IFRS','CAS'] or scope not in ['consolidated','parent']:raise ValidationError('币种、准则或报表口径无效')
         profile={'name':name,'mode':mode,'currency':currency,'basis':basis,'scope':scope,'industry':str(p.get('industry','unclassified')).strip() or 'unclassified','business_models':[str(p.get('business_model','待补充'))],'subtitle':str(p.get('industry','待分类'))+' / '+str(p.get('business_model','待补充')),'question':str(p.get('question','增长、盈利和现金流是否相互支持？')),'segments':[],'business_segments':[],'products':[],'context_entities':[],'business_summary':None,'business_source_ids':[],'market':[],'unknowns':['请先导入带来源的财务数据。','行业分类与实际商业模式需要研究者确认。'],'operating_identity':p.get('operating_identity','with_other'),'periods':{},'tolerance':.01}
         if profile['operating_identity'] not in ['with_other','gp_less_opex']:raise ValidationError('无效经营利润口径')
@@ -87,7 +87,12 @@ class Store:
             periods={}
             for o in latest.values():
                 if o['period_type']=='annual':periods.setdefault(o['period'],{})[o['metric']]=o['value']
-            records=[{**dict(r),'content':json.loads(r['content'])} for r in db.execute('SELECT * FROM records WHERE company=? ORDER BY created_at DESC',(company,))]
+            all_records=[{**dict(r),'content':json.loads(r['content'])} for r in db.execute('SELECT * FROM records WHERE company=? ORDER BY created_at DESC',(company,))]
+            # Research memory follows its explicit research-as-of, not wall-clock creation time.
+            # This keeps retrospective exercises usable while preventing a later-as-of conclusion
+            # from leaking into an earlier evidence view. Records without an as-of remain visible
+            # for legacy compatibility and are still exposed in the all-time revision history.
+            records=[r for r in all_records if not r['content'].get('asof') or r['content'].get('asof')<=asof]
             audit=[dict(r) for r in db.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 40')]
         visible_sources={d['id'] for d in docs}
         profile=self.profile(company);profile['segments']=[s for s in profile.get('segments',[]) if s.get('source') in visible_sources]
@@ -109,13 +114,15 @@ class Store:
         if diagnostics['years'] and required <= set(diagnostics['current']) and diagnostics['current']['revenue'] and profile['segments']:
             params=defaults(company,diagnostics['current'],profile['segments'])
         else:params=None
-        # Legacy AMD rows receive lineage metadata without changing amounts or review flags.
+        # Legacy AMD calculated liabilities receive observation-level lineage IDs.
+        # Dependencies must resolve to concrete observations, not merely metric names.
         for o in obs:
-            if o['company']=='AMD' and o['metric']=='liabilities' and o.get('kind')=='Calculated':o['depends_on']=['assets','equity']
+            if o['company']=='AMD' and o['metric']=='liabilities' and o.get('kind')=='Calculated':
+                o['depends_on']=[x['id'] for x in obs if x['period']==o['period'] and x['metric'] in ['assets','equity']]
         checks=dashboard(periods,profile,obs)
         diagnostics['checks']=[{'label':c['formula'],'status':c['status'],'difference':c['difference'],'inputs':c['inputs']} for c in checks['checks'] if c['period']==latest_year and c['id'] in ['gross','operating','balance']]
         if profile['mode']=='financial':params=None
-        result={'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings、Industry Driver Modules 与 Company Map 来自确定性规则和显式模板。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
+        result={'company':profile,'asof':asof,'documents':docs,'observations':obs,'periods':periods,'diagnostics':diagnostics,'relations':checks,'metric_dictionary':METRICS,'defaults':params,'records':records,'revision_history_all_time':all_records,'audit':audit,'ai':{'status':'not_connected','message':'未调用模型 API；V3 findings、Industry Driver Modules 与 Company Map 来自确定性规则和显式模板。'},'storage':'SQLite 本地持久化','review_pending':sum(not o['reviewed'] for o in obs)}
         result['semantic']=build_semantic_snapshot(result)
         result['v3']=build_v3_view(profile,diagnostics,periods,obs,docs,checks,result['semantic'])
         return result
