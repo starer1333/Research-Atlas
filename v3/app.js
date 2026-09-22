@@ -2,6 +2,9 @@
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],fmt=(v,d=0)=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d}),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const previewView=new URLSearchParams(location.search).get('view');
 let db={},ticker='NVDA',page=previewView==='business'?'analysis':'research',tab=previewView==='business'?'business':'financials';
+const PAGE_ORDER=['research','evidence','analysis','report'];
+const TAB_ORDER=['financials','business','peers','scenario'];
+function directionBetween(order,from,to){const a=order.indexOf(from),b=order.indexOf(to);return b<a?'backward':'forward'}
 const ratio=(a,b)=>a==null||!b?null:a/b*100,growth=(a,b)=>a==null||b==null||!a?null:(b/a-1)*100;
 function state(){return db[ticker]}
 function renderCompanyMenu(){
@@ -21,9 +24,20 @@ function setAmbient(){
   delete document.documentElement.dataset.ambient;
   delete document.documentElement.dataset.tone;
 }
-function smoothRender(){
-  if(document.startViewTransition){document.startViewTransition(()=>render())}
-  else render();
+function smoothRender(direction='forward'){
+  const root=document.documentElement;
+  root.dataset.navDirection=direction;
+  const cleanup=()=>{if(root.dataset.navDirection===direction)delete root.dataset.navDirection};
+  if(document.startViewTransition){
+    const transition=document.startViewTransition(()=>render());
+    transition.finished.finally(cleanup);
+  }else{
+    render();
+    const content=$('#content'),cls=direction==='backward'?'atlas-slide-backward':'atlas-slide-forward';
+    content.classList.remove('atlas-slide-forward','atlas-slide-backward');
+    requestAnimationFrame(()=>content.classList.add(cls));
+    setTimeout(()=>{content.classList.remove(cls);cleanup()},560);
+  }
 }
 function plannerPreview(){
   return '<div class="planner-shell"><div class="planner-head"><div><span class="eyebrow">V3-10 · OPTIONAL AI RESEARCH PLANNER</span><h3>AI plans the investigation. It does not own the facts.</h3></div><span class="ai-badge">OFF BY DEFAULT</span></div><p>Local V3 can send a compact grounded snapshot to an OpenAI-compatible model to suggest research questions, evidence to seek and counter-evidence. The model cannot write observations, verify evidence, calculate finance or create a final claim.</p><div class="planner-boundaries"><span>ai_suggested</span><span>not_verified</span><span>explicit save only</span><span>source-ID constrained</span></div><small>Public Pages intentionally does not call any AI provider.</small></div>'
@@ -126,9 +140,9 @@ function businessPreview(s){
 }
 function renderAnalysis(s){$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">ANALYSIS</span><h1>发生了什么，为什么？</h1><p>Financials / Business / Peers / Scenario 都属于 Analysis，不再占据一级导航。</p></div>'+coverage(s)+'</div><div class="subnav"><button data-tab="financials" class="'+(tab==='financials'?'active':'')+'">Financials</button><button data-tab="business" class="'+(tab==='business'?'active':'')+'">Business</button><button data-tab="peers" class="'+(tab==='peers'?'active':'')+'">Peers</button><button data-tab="scenario" class="'+(tab==='scenario'?'active':'')+'">Scenario</button></div><section class="section">'+(tab==='financials'?head('FINANCIAL DIAGNOSTICS','关系优先，不是 ratio 展览','Growth → Profitability → Cash → Working Capital。')+'<div class="findings">'+findings(s).slice(0,3).map(findingCard).join('')+'</div>':tab==='business'?businessPreview(s):tab==='peers'?head('COMPARATIVE REASONING','先判断能不能比，再解释差异','Peer comparison 不等于 leaderboard。')+peerTable():head('QUESTION-FIRST SCENARIO','Scenario 由研究问题触发','静态预览暂不写入参数和版本。')+'<div class="empty"><h3>先保存一个 Research Question</h3><p>V3 不再让用户一进入产品就调 WACC / growth / margin。研究问题 → mechanism → scenario。</p></div>')+'</section>'}
 function renderReport(s){$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">RESEARCH MEMORY</span><h1>我现在怎么看？</h1><p>Report 汇集研究问题、证据、反证、情景和 revision。静态预览不保存真实记录。</p></div>'+coverage(s)+'</div><section class="section">'+head('CURRENT RESEARCH THREADS','正在研究的问题','这里最终会连接 Claim / Counter-evidence / What changes my mind。')+'<div class="timeline">'+findings(s).slice(0,3).map((f,i)=>'<article><span class="eyebrow">OPEN QUESTION · 0'+(i+1)+'</span><h3>'+f.q+'</h3><p>'+f.why+'</p></article>').join('')+'</div></section>'}
-function render(){const s=state();if(!s)return;setAmbient();nav();$('#ticker').textContent=ticker;$('#companyName').textContent=s.company.name;$('#subtitle').textContent=s.company.subtitle||s.company.industry;$('#companySelectValue').textContent=ticker;if(page==='research')renderResearch(s);if(page==='evidence')renderEvidence(s);if(page==='analysis')renderAnalysis(s);if(page==='report')renderReport(s);const content=$('#content');content.classList.remove('is-entering');requestAnimationFrame(()=>content.classList.add('is-entering'));renderCharts()}
+function render(){const s=state();if(!s)return;setAmbient();nav();$('#ticker').textContent=ticker;$('#companyName').textContent=s.company.name;$('#subtitle').textContent=s.company.subtitle||s.company.industry;$('#companySelectValue').textContent=ticker;if(page==='research')renderResearch(s);if(page==='evidence')renderEvidence(s);if(page==='analysis')renderAnalysis(s);if(page==='report')renderReport(s);renderCharts()}
 function openEvidenceFor(f){const s=state(),ys=s.diagnostics.years.slice(-2),obs=s.observations.filter(o=>f.metrics.includes(o.metric)&&ys.includes(o.period));$('#drawerTitle').textContent=f.title;$('#drawerBody').innerHTML=obs.map(o=>{const d=source(o.source_id);return '<div class="ev"><span class="eyebrow">'+esc(o.kind)+' · PENDING REVIEW</span><h3>'+esc(o.label||o.metric)+'</h3><dl><dt>Value</dt><dd>'+fmt(o.value)+' '+esc(o.currency)+' '+esc(o.unit)+'</dd><dt>Period</dt><dd>'+esc(o.period)+'</dd><dt>Basis / Scope</dt><dd>'+esc(o.basis)+' · '+esc(o.scope)+'</dd><dt>Source</dt><dd>'+esc(d?.title||o.source_id)+'</dd><dt>Locator</dt><dd>'+esc(d?.locator||'—')+'</dd></dl>'+((d&&d.url)?'<a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a>':'')+'</div>'}).join('');$('#drawer').showModal()}
-document.addEventListener('click',e=>{const p=e.target.closest('[data-page]');if(p){page=p.dataset.page;smoothRender();return}const t=e.target.closest('[data-tab]');if(t){tab=t.dataset.tab;setAmbient();smoothRender();return}const src=e.target.closest('[data-source]');if(src){const d=source(src.dataset.source);$('#drawerTitle').textContent=d.title;$('#drawerBody').innerHTML='<div class="ev"><dl><dt>Disclosed</dt><dd>'+d.disclosed_at+'</dd><dt>Locator</dt><dd>'+esc(d.locator)+'</dd></dl><a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a></div>';$('#drawer').showModal();return}const a=e.target.closest('[data-act]');if(a){const card=a.closest('[data-id]'),f=findings(state()).find(x=>x.id===card.dataset.id);if(a.dataset.act==='why')card.querySelector('.detail').hidden=!card.querySelector('.detail').hidden;if(a.dataset.act==='evidence')openEvidenceFor(f);if(a.dataset.act==='compare'){page='analysis';tab='peers';render()}if(a.dataset.act==='research'){page='report';render()}return}});
+document.addEventListener('click',e=>{const p=e.target.closest('[data-page]');if(p){const next=p.dataset.page,dir=directionBetween(PAGE_ORDER,page,next);page=next;smoothRender(dir);return}const t=e.target.closest('[data-tab]');if(t){const next=t.dataset.tab,dir=directionBetween(TAB_ORDER,tab,next);tab=next;setAmbient();smoothRender(dir);return}const src=e.target.closest('[data-source]');if(src){const d=source(src.dataset.source);$('#drawerTitle').textContent=d.title;$('#drawerBody').innerHTML='<div class="ev"><dl><dt>Disclosed</dt><dd>'+d.disclosed_at+'</dd><dt>Locator</dt><dd>'+esc(d.locator)+'</dd></dl><a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a></div>';$('#drawer').showModal();return}const a=e.target.closest('[data-act]');if(a){const card=a.closest('[data-id]'),f=findings(state()).find(x=>x.id===card.dataset.id);if(a.dataset.act==='why')card.querySelector('.detail').hidden=!card.querySelector('.detail').hidden;if(a.dataset.act==='evidence')openEvidenceFor(f);if(a.dataset.act==='compare'){const dir=page==='analysis'?directionBetween(TAB_ORDER,tab,'peers'):directionBetween(PAGE_ORDER,page,'analysis');page='analysis';tab='peers';smoothRender(dir)}if(a.dataset.act==='research'){const dir=directionBetween(PAGE_ORDER,page,'report');page='report';smoothRender(dir)}return}});
 window.addEventListener('resize',()=>window.AtlasPreviewCharts?.resizeAll());
 $('#close').onclick=()=>$('#drawer').close();
 $('#drawer').addEventListener('click',e=>{
