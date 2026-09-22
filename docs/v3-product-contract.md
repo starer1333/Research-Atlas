@@ -24,7 +24,7 @@ It is not an automatic investment recommendation engine.
 1. Research — What is this company and what is worth investigating?
 2. Evidence — Where did the facts come from and what is still unverified?
 3. Analysis — What happened, why, how does it compare, and what happens under a scenario?
-4. Report — What does the researcher currently believe and how did that view change?
+4. Report — What does the researcher currently believe, which evidence supports/challenges it, what would falsify it, and how did that view change?
 
 Data Integrity remains available, but it is intentionally subordinate to Financial Diagnostics.
 
@@ -67,9 +67,10 @@ LLM interpretation != fact.
 - WHY / EVIDENCE / COMPARE / ADD TO RESEARCH interaction grammar.
 - question-first Scenario entry.
 - Comparative Reasoning UI over the existing metric-level comparability backend.
+- Claim Workspace inside Report: a ResearchQuestion opens a first-class workspace for supporting evidence, counter-evidence, current claim, alternative explanation, falsification trigger and immutable revision.
 - Research Memory view using immutable existing records.
 - question-save route so a question can be persisted before a conclusion exists.
-- V3 Semantic Contract 3.4: Company / Metric / Observation / Document / Segment / Product / ContextEntity / Driver / ResearchQuestion / Claim / Revision, including evidence/dependency/revision referential validation.
+- V3 Semantic Contract 3.5: Company / Metric / Observation / Document / Segment / Product / ContextEntity / Driver / ResearchQuestion / Claim / Revision, including evidence/dependency/revision referential validation.
 - Opt-in direct SEC EDGAR SourceAdapter and Automatic Starter Research Pack for new U.S. tickers.
 - V3-6 deterministic latest-10-K Item 1 parser with source-linked Business excerpt and pending-review Segment/Product candidates.
 
@@ -82,8 +83,10 @@ Implemented now:
 - Company / Product Map and six deterministic industry modules including General fallback
 - Apache ECharts visualization grammar
 - optional OpenAI-compatible AI Research Planner, off by default
-- Semantic Contract 3.4 lineage hardening: Question → Claim → support/counter-evidence, saved Driver projection, calculated dependency lineage and revision referential integrity
+- Semantic Contract 3.5 lineage hardening: Question → Claim → support/counter-evidence, saved Driver projection, calculated dependency lineage and revision referential integrity
 - research memory filtered by each record's explicit research `asof`, with a separate all-time revision history
+- a canonical provenance envelope on evidence-bearing semantic objects, including source IDs/type, disclosure date, locator, accession, source tag, quote, extraction/review metadata, formula/dependencies where applicable
+- browser-level Playwright E2E for Research → Claim Workspace → revision and Evidence provenance rendering
 
 Still deliberately deferred:
 
@@ -97,11 +100,13 @@ Still deliberately deferred:
 
 ## Next engineering slices
 
-1. Build a first-class Claim authoring UI on top of the now-enforced Question / support / counter-evidence contract.
-2. Add browser-level E2E coverage for Research → Evidence → Analysis → Report and local API interactions.
-3. Unify SEC/manual-extraction provenance into one structured provenance object.
-4. Extend note-level filing extraction only after the semantic contract remains stable under real imports.
-5. Add richer retrieval/AI workflows only on top of resolvable evidence and revision lineage.
+The three prior priority slices are now implemented: Claim Workspace, browser E2E and unified provenance.
+
+1. Improve Claim Workspace evidence filtering/search once real research sessions reveal scale pain.
+2. Extend provenance envelopes to richer non-financial evidence types as note-level extraction grows.
+3. Add E2E coverage for SEC Starter Pack and as-of regression scenarios.
+4. Extend note-level filing extraction only after the Semantic 3.5 contract remains stable under real imports.
+5. Add richer retrieval/AI workflows only on top of resolvable evidence, provenance and revision lineage.
 
 The V3 rule remains: simple surface, deep logic.
 
