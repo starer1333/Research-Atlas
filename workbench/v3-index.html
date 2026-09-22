@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f5f5f7">
+<meta name="theme-color" content="#5b85be">
 <title>Research Atlas V3 — Guided Company Research</title>
 <link rel="stylesheet" href="v3.css">
 <link rel="stylesheet" href="v3-liquid.css">
@@ -20,8 +20,15 @@
   </a>
   <div class="company-picker">
     <label for="companySearch">公司 / Ticker</label>
-    <div class="search-row"><input id="companySearch" list="companyList" autocomplete="off" placeholder="NVIDIA / NVDA"><button id="openCompany">打开</button></div>
-    <datalist id="companyList"></datalist>
+    <div class="company-combobox" id="companyCombobox" data-open="false">
+      <div class="combo-input-wrap">
+        <input id="companySearch" autocomplete="off" placeholder="NVIDIA / NVDA" role="combobox" aria-autocomplete="list" aria-controls="companyMenu" aria-expanded="false">
+        <button id="companyToggle" class="combo-chevron" type="button" aria-label="展开公司列表" aria-expanded="false">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div id="companyMenu" class="combo-menu" role="listbox" hidden></div>
+    </div>
     <p id="companyHint">从已有研究案例开始；启用 SEC SourceAdapter 后可直接输入新的美国上市公司 ticker。</p>
   </div>
   <nav aria-label="V3 主导航">
