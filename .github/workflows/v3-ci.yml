@@ -3,10 +3,11 @@ name: V3 CI
 on:
   push:
     branches:
-      - feature/research-workbench-v3
+      - main
+      - "feature/research-workbench-v3*"
   pull_request:
     branches:
-      - feature/research-workbench-v2
+      - main
 
 permissions:
   contents: read
@@ -29,6 +30,10 @@ jobs:
         run: python -B tests/test_filing_text.py
       - name: V3 guided workflow
         run: python -B tests/test_v3.py
+      - name: V3-7 company product map
+        run: python -B tests/test_company_map.py
+      - name: V3-8 industry driver modules
+        run: python -B tests/test_industries.py
       - name: Existing research tests
         run: python -B tests/test_research.py
       - name: Existing workbench tests
