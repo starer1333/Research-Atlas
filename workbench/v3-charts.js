@@ -10,11 +10,16 @@
     ink:css('--ink','#1d1d1f'),
     muted:css('--muted','#6e6e73'),
     line:css('--line','rgba(0,0,0,.10)'),
-    accent:css('--accent','#0071e3'),
-    accent2:css('--accent-2','#5e5ce6'),
-    green:css('--green','#248a3d'),
-    gold:css('--gold','#a65f00'),
-    warn:css('--warn','#c9342f'),
+    accent:css('--accent','#0066cc'),
+    dataPrimary:css('--data-primary','#2f6f9f'),
+    dataSecondary:css('--data-secondary','#706f85'),
+    dataCash:css('--data-cash','#3f7d68'),
+    dataWorking:css('--data-working','#7a6f9b'),
+    dataInventory:css('--data-inventory','#a67a3d'),
+    dataForecast:css('--data-forecast','#5f6b76'),
+    success:css('--success','#247a45'),
+    warning:css('--warning','#9b6a1f'),
+    danger:css('--danger','#b73a35'),
     surface:css('--surface','#ffffff')
   });
   const compact=v=>v==null?'—':new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(v);
@@ -60,8 +65,8 @@
       return [period].concat(params.map(x=>x.marker+' '+x.seriesName+': '+(x.seriesName==='Operating margin'?percent(x.value):compact(x.value)))).join('<br>');
     };
     option.series=[
-      {name:'Revenue',type:'bar',data:clean.map(r=>r.revenue),barMaxWidth:42,itemStyle:{color:p.accent,borderRadius:[8,8,3,3]},emphasis:{focus:'series'}},
-      {name:'Operating margin',type:'line',yAxisIndex:1,data:clean.map(r=>r.operating_margin),smooth:.24,showSymbol:true,symbolSize:7,lineStyle:{width:3,color:p.accent2},itemStyle:{color:p.accent2},emphasis:{focus:'series'}}
+      {name:'Revenue',type:'bar',data:clean.map(r=>r.revenue),barMaxWidth:42,itemStyle:{color:p.dataPrimary,borderRadius:[5,5,2,2]},emphasis:{focus:'series'}},
+      {name:'Operating margin',type:'line',yAxisIndex:1,data:clean.map(r=>r.operating_margin),smooth:.24,showSymbol:true,symbolSize:7,lineStyle:{width:3,color:p.dataSecondary},itemStyle:{color:p.dataSecondary},emphasis:{focus:'series'}}
     ];
     chart.setOption(option,true);
   }
@@ -72,9 +77,9 @@
     const option=baseOption();
     option.xAxis.data=clean.map(r=>r.period);
     option.series=[
-      ['CFO','cfo',p.green],
-      ['Receivables','receivables',p.accent2],
-      ['Inventory','inventory',p.gold]
+      ['CFO','cfo',p.dataCash],
+      ['Receivables','receivables',p.dataWorking],
+      ['Inventory','inventory',p.dataInventory]
     ].map(([name,key,color])=>({name,type:'line',data:clean.map(r=>r[key]??null),smooth:.18,connectNulls:false,symbolSize:6,lineStyle:{width:2.4,color},itemStyle:{color},emphasis:{focus:'series'}}));
     chart.setOption(option,true);
   }
@@ -82,7 +87,7 @@
     const chart=init(el);if(!chart)return unavailable(el);
     const p=palette(), data=(segments||[]).filter(s=>Number.isFinite(Number(s.value))&&Number(s.value)>0).map(s=>({name:s.name,value:Number(s.value)}));
     if(!data.length)return unavailable(el);
-    const colors=[p.accent,p.accent2,p.green,p.gold,'#64d2ff','#bf5af2','#ff9f0a'];
+    const colors=[p.dataPrimary,p.dataSecondary,p.dataCash,p.dataInventory,'#7f95a6','#9b8a78','#8b93a1'];
     chart.setOption({
       animationDuration:reduced()?0:620,
       color:colors,
@@ -114,8 +119,8 @@
       yAxis:{type:'value',axisLabel:{color:p.muted,fontSize:9,formatter:compact},splitLine:{lineStyle:{color:p.line}}},
       series:[
         {type:'bar',stack:'total',silent:true,itemStyle:{borderColor:'transparent',color:'transparent'},emphasis:{itemStyle:{borderColor:'transparent',color:'transparent'}},data:base},
-        {name:'Increase',type:'bar',stack:'total',data:pos,itemStyle:{color:p.green,borderRadius:[6,6,2,2]}},
-        {name:'Decrease',type:'bar',stack:'total',data:neg,itemStyle:{color:p.warn,borderRadius:[6,6,2,2]}}
+        {name:'Increase',type:'bar',stack:'total',data:pos,itemStyle:{color:p.success,borderRadius:[4,4,2,2]}},
+        {name:'Decrease',type:'bar',stack:'total',data:neg,itemStyle:{color:p.danger,borderRadius:[4,4,2,2]}}
       ]
     },true);
   }
@@ -140,7 +145,7 @@
         type:'bar',
         barMaxWidth:28,
         data:metrics.map(([key])=>row.metric_checks?.[key]?.status==='qualified'?row.metric_checks[key].value:null),
-        itemStyle:{color:[p.accent,p.accent2,p.green,p.gold][i%4],borderRadius:[5,5,2,2]}
+        itemStyle:{color:[p.dataPrimary,p.dataSecondary,p.dataCash,p.dataInventory][i%4],borderRadius:[4,4,2,2]}
       }))
     },true);
   }
@@ -151,9 +156,9 @@
     const option=baseOption();
     option.xAxis.data=clean.map(r=>r.year);
     option.series=[
-      {name:'Revenue',type:'bar',data:clean.map(r=>r.revenue),barMaxWidth:34,itemStyle:{color:p.accent,borderRadius:[7,7,2,2]}},
-      {name:'EBIT',type:'line',data:clean.map(r=>r.ebit),smooth:.2,lineStyle:{width:2.5,color:p.accent2},itemStyle:{color:p.accent2}},
-      {name:'FCFF',type:'line',data:clean.map(r=>r.fcff),smooth:.2,lineStyle:{width:2.5,color:p.green},itemStyle:{color:p.green}}
+      {name:'Revenue',type:'bar',data:clean.map(r=>r.revenue),barMaxWidth:34,itemStyle:{color:p.dataPrimary,borderRadius:[5,5,2,2]}},
+      {name:'EBIT',type:'line',data:clean.map(r=>r.ebit),smooth:.2,lineStyle:{width:2.5,color:p.dataSecondary},itemStyle:{color:p.dataSecondary}},
+      {name:'FCFF',type:'line',data:clean.map(r=>r.fcff),smooth:.2,lineStyle:{width:2.5,color:p.dataCash},itemStyle:{color:p.dataCash}}
     ];
     chart.setOption(option,true);
   }
