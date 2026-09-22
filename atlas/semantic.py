@@ -207,9 +207,22 @@ def build_semantic_snapshot(state):
     ]
     document_ids={d.id for d in documents}
     observations=[]
-    for o in state.get("observations",[]):
+    raw_observations=state.get("observations",[])
+    raw_observation_ids={x.get("id") for x in raw_observations}
+    for o in raw_observations:
         if o.get("metric") not in metric_ids:
             continue
+        resolved_dependencies=[]
+        for dep in o.get("depends_on",[]):
+            if dep in raw_observation_ids:
+                resolved_dependencies.append(dep);continue
+            # Legacy store rows may express dependencies as metric IDs for accounting checks.
+            # Resolve them to the latest visible observation in the same period/basis for Semantic 3.4.
+            match=next((x for x in reversed(raw_observations)
+                if x.get("period")==o.get("period") and x.get("metric")==dep
+                and x.get("basis",profile.get("basis","GAAP"))==o.get("basis",profile.get("basis","GAAP"))),None)
+            if match:resolved_dependencies.append(match["id"])
+            else:resolved_dependencies.append(dep)
         observations.append(Observation(
             id=o["id"],company_id=ticker,metric_id=o["metric"],document_id=o["source_id"],
             period=o["period"],period_type=o.get("period_type","annual"),value=float(o["value"]),
@@ -217,7 +230,7 @@ def build_semantic_snapshot(state):
             accounting_basis=o.get("basis",profile.get("basis","GAAP")),scope=o.get("scope",profile.get("scope","consolidated")),
             value_kind=o.get("kind","Unknown"),review_state="reviewed" if o.get("reviewed") else "pending_review",
             disclosed_at=o.get("disclosed_at",""),period_start=o.get("period_start"),period_end=o.get("period_end"),
-            source_tag=o.get("source_tag"),formula=o.get("formula"),depends_on=list(o.get("depends_on",[])),
+            source_tag=o.get("source_tag"),formula=o.get("formula"),depends_on=resolved_dependencies,
             metadata={k:o[k] for k in ["source_accession","version_count","restatement_candidate","selection_policy","quote","extraction_review_id"] if o.get(k) is not None},
         ))
     observation_ids={o.id for o in observations}
