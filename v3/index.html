@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f5f5f7">
+<meta name="theme-color" content="#5b85be">
 <meta name="description" content="Research Atlas V3 UI preview — guided company research workbench.">
 <title>Research Atlas V3 · UI Preview</title>
 <link rel="stylesheet" href="style.css">
@@ -16,7 +16,17 @@
 <body>
 <aside class="rail">
   <a class="brand" href="#research"><span class="mark">RA</span><span><b>Research Atlas</b><small>Evidence before conviction</small></span></a>
-  <div class="picker"><label for="company">Company / Ticker</label><select id="company"></select><p>公开静态预览 · 不写入研究数据库</p></div>
+  <div class="picker">
+    <label for="companySelectButton">Company / Ticker</label>
+    <div class="company-combobox" id="companyCombobox" data-open="false">
+      <button id="companySelectButton" class="combo-select" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="companyMenu">
+        <span id="companySelectValue">—</span>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div id="companyMenu" class="combo-menu" role="listbox" hidden></div>
+    </div>
+    <p>公开静态预览 · 不写入研究数据库</p>
+  </div>
   <nav>
     <button data-page="research" aria-current="page"><span>01</span><b>Research</b><small>这家公司是什么？值得研究什么？</small></button>
     <button data-page="evidence"><span>02</span><b>Evidence</b><small>事实从哪里来？</small></button>
@@ -30,6 +40,6 @@
 <main><div class="notice">这是 V3 公开静态预览。主分支已完成 V3-9 ECharts Visualization Grammar 与 V3-10 Optional AI Research Planner。Pages 只展示研究界面与静态数据，不发起 SEC / AI 请求；AI planner 在本地 runtime 中默认关闭。</div><div id="content"></div></main>
 <footer><span>Research Atlas V3</span><span>公开披露 · 可复核计算 · 可检验判断</span></footer>
 </div>
-<dialog id="drawer"><div class="drawer-head"><div><small>EVIDENCE</small><h2 id="drawerTitle">来源</h2></div><button id="close">×</button></div><div id="drawerBody"></div></dialog>
+<dialog id="drawer"><div class="drawer-head"><div><small>EVIDENCE</small><h2 id="drawerTitle">来源</h2></div><button id="close" aria-label="关闭证据面板">×</button></div><div id="drawerBody"></div></dialog>
 <nav class="mobile"><button data-page="research">Research</button><button data-page="evidence">Evidence</button><button data-page="analysis">Analysis</button><button data-page="report">Report</button></nav>
 </body></html>
