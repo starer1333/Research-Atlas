@@ -1,100 +1,106 @@
-/* Research Atlas V3 — UI Freeze
-   Fixed blue theme sampled from P1 reference.
-   No page/company/industry color switching. */
+/* Research Atlas V3 — P1/P2/P3 reference pass
+   P1 light blue is the persistent workspace canvas.
+   P2 pink and P3 green are accents only — never page-background gradients. */
 
 :root{
-  --scene-main:#5b85be;
-  --scene-side:#315686;
-  --scene-overlay:#3e6899;
-  --scene-ink:#f8fbff;
-  --scene-muted:rgba(248,251,255,.78);
-  --scene-faint:rgba(248,251,255,.60);
-  --scene-line:rgba(255,255,255,.20);
+  --p1-blue:#c8e9f1;
+  --p1-blue-soft:#dff3f7;
+  --p1-blue-side:#d8f0f5;
+  --p2-pink:#eeb8c3;
+  --p2-pink-soft:rgba(238,184,195,.34);
+  --p3-green:#82dcb4;
+  --p3-green-soft:rgba(130,220,180,.30);
 
-  --glass-fill:rgba(255,255,255,.10);
-  --glass-fill-hover:rgba(255,255,255,.16);
-  --glass-fill-strong:rgba(255,255,255,.18);
-  --glass-edge:rgba(255,255,255,.34);
-  --glass-highlight:rgba(255,255,255,.52);
-  --glass-shadow:0 16px 42px rgba(20,48,82,.16);
+  --scene-main:var(--p1-blue);
+  --scene-side:var(--p1-blue-side);
+  --scene-overlay:rgba(255,255,255,.34);
+  --scene-ink:#101417;
+  --scene-muted:#51636a;
+  --scene-faint:#6d7c81;
+  --scene-line:rgba(16,20,23,.12);
 
-  --control-bg:rgba(255,255,255,.96);
-  --control-ink:#264d79;
+  --glass-fill:rgba(255,255,255,.28);
+  --glass-fill-hover:rgba(255,255,255,.42);
+  --glass-fill-strong:rgba(255,255,255,.52);
+  --glass-edge:rgba(255,255,255,.74);
+  --glass-highlight:rgba(255,255,255,.86);
+  --glass-shadow:0 14px 34px rgba(51,93,105,.12);
+
+  --control-bg:rgba(255,255,255,.62);
+  --control-ink:#101417;
 
   --ink:var(--scene-ink);
   --muted:var(--scene-muted);
   --subtle:var(--scene-faint);
   --line:var(--scene-line);
-  --line-strong:rgba(255,255,255,.30);
-  --surface:var(--glass-fill);
-  --surface-2:rgba(255,255,255,.07);
+  --line-strong:rgba(16,20,23,.18);
+  --surface:rgba(255,255,255,.18);
+  --surface-2:rgba(255,255,255,.13);
   --canvas:var(--scene-main);
   --chrome:var(--scene-side);
-  --accent:var(--scene-ink);
-  --accent-soft:rgba(255,255,255,.12);
+  --accent:#0f5369;
+  --accent-soft:var(--p3-green-soft);
 
-  --data-primary:#f8fbff;
-  --data-secondary:#d6e6f6;
-  --data-reference:#b9cee5;
-  --data-cash:#c9efdf;
-  --data-working:#e4dcf3;
-  --data-inventory:#f3d399;
-  --data-forecast:#c6d5e4;
+  --data-primary:#154f63;
+  --data-secondary:#8b5964;
+  --data-reference:#62747a;
+  --data-cash:#34775e;
+  --data-working:#6e638e;
+  --data-inventory:#9c6f35;
+  --data-forecast:#506068;
 
+  --success:#2f775f;
+  --warning:#9a5d69;
+  --danger:#a94a50;
+  --pending:#70658c;
   --ease-liquid:cubic-bezier(.22,1,.36,1);
 }
 
 html,body,.v3-app,.v3-rail,.v3-topbar,main,footer{
-  transition:background-color .36s ease,color .28s ease,border-color .28s ease
+  transition:background-color .28s ease,color .22s ease,border-color .22s ease
 }
-body,.v3-app{background:var(--scene-main)!important}
-main{background:transparent}
+html,body,.v3-app{background:var(--p1-blue)!important;color:var(--scene-ink)!important}
+main{background:transparent!important}
 
-/* Structural liquid chrome */
+/* Persistent light-blue workspace */
 .v3-rail{
   width:286px!important;
-  background:rgba(49,86,134,.94)!important;
-  border-right:1px solid var(--glass-edge)!important;
-  box-shadow:inset -1px 0 0 rgba(255,255,255,.08),8px 0 32px rgba(20,48,82,.08);
-  -webkit-backdrop-filter:blur(30px) saturate(140%)!important;
-  backdrop-filter:blur(30px) saturate(140%)!important
+  background:rgba(223,243,247,.70)!important;
+  border-right:1px solid rgba(255,255,255,.78)!important;
+  box-shadow:inset -1px 0 0 rgba(16,20,23,.035),8px 0 28px rgba(51,93,105,.07);
+  -webkit-backdrop-filter:blur(30px) saturate(120%)!important;
+  backdrop-filter:blur(30px) saturate(120%)!important
 }
 .v3-app{margin-left:286px!important}
 .v3-topbar{
   height:70px!important;
-  background:rgba(91,133,190,.80)!important;
-  border-bottom:0!important;
-  box-shadow:inset 0 -1px 0 var(--scene-line);
-  -webkit-backdrop-filter:blur(28px) saturate(145%)!important;
-  backdrop-filter:blur(28px) saturate(145%)!important
+  background:rgba(200,233,241,.76)!important;
+  border-bottom:1px solid rgba(255,255,255,.62)!important;
+  box-shadow:none!important;
+  -webkit-backdrop-filter:blur(28px) saturate(125%)!important;
+  backdrop-filter:blur(28px) saturate(125%)!important
 }
 
 .brand-mark{
   border-radius:12px!important;
-  background:var(--glass-fill)!important;
-  color:var(--scene-ink)!important;
-  border:1px solid var(--glass-edge)!important;
-  box-shadow:inset 0 1px 0 var(--glass-highlight),inset 0 -1px 0 rgba(0,0,0,.06),var(--glass-shadow)!important;
-  -webkit-backdrop-filter:blur(22px) saturate(150%);
-  backdrop-filter:blur(22px) saturate(150%)
+  background:#101417!important;color:#fff!important;
+  border:1px solid rgba(16,20,23,.08)!important;
+  box-shadow:0 8px 20px rgba(51,93,105,.12)!important
 }
-.v3-brand b,.v3-brand small,.company-picker label,.company-picker p,.rail-foot,.rail-foot a,
-.company-context>span:first-child,.company-context b,.company-context #companySubtitle,.top-actions label{
-  color:var(--scene-ink)!important
+.v3-brand b,.company-context b{color:var(--scene-ink)!important}
+.v3-brand small,.company-picker label,.company-picker p,.rail-foot,.rail-foot a,
+.company-context>span:first-child,.company-context #companySubtitle,.top-actions label{
+  color:var(--scene-muted)!important;opacity:1!important
 }
-.v3-brand small,.company-picker p,.rail-foot,.company-context #companySubtitle,.top-actions label{opacity:.76}
 
-/* Company combobox */
+/* Company combobox — functional glass only */
 .company-picker{overflow:visible!important}
 .company-combobox{position:relative;margin-top:9px}
 .combo-input-wrap{
-  position:relative;display:flex;align-items:center;
-  min-height:52px;border-radius:17px;
-  background:var(--glass-fill)!important;
-  border:1px solid var(--glass-edge)!important;
-  box-shadow:inset 0 1px 0 var(--glass-highlight),0 12px 28px rgba(20,48,82,.10);
-  -webkit-backdrop-filter:blur(24px) saturate(155%);
-  backdrop-filter:blur(24px) saturate(155%);
+  position:relative;display:flex;align-items:center;min-height:52px;border-radius:17px;
+  background:var(--glass-fill)!important;border:1px solid var(--glass-edge)!important;
+  box-shadow:inset 0 1px 0 var(--glass-highlight),0 10px 24px rgba(51,93,105,.08);
+  -webkit-backdrop-filter:blur(24px) saturate(130%);backdrop-filter:blur(24px) saturate(130%);
   overflow:hidden
 }
 .combo-input-wrap input{
@@ -102,24 +108,21 @@ main{background:transparent}
   color:var(--scene-ink)!important;padding:13px 52px 13px 15px!important;
   font-size:16px!important;outline:0!important
 }
-.combo-input-wrap input::placeholder{color:var(--scene-faint)}
+.combo-input-wrap input::placeholder{color:var(--scene-faint)!important}
 .combo-chevron{
   position:absolute;right:9px;top:50%;transform:translateY(-50%);
-  width:36px;height:36px;display:grid;place-items:center;
-  border:0;border-radius:11px;background:transparent;color:var(--scene-ink);
-  padding:0;z-index:2
+  width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:11px;
+  background:transparent;color:var(--scene-ink);padding:0;z-index:2
 }
 .combo-chevron svg{width:18px;height:18px;transition:transform .28s var(--ease-liquid)}
 .company-combobox[data-open="true"] .combo-chevron svg{transform:rotate(180deg)}
-.combo-chevron:hover{background:var(--glass-fill-hover)}
+.combo-chevron:hover{background:rgba(255,255,255,.42)}
 .combo-menu{
   position:absolute;z-index:30;left:0;right:0;top:calc(100% + 8px);
-  max-height:270px;overflow:auto;padding:7px;
-  border-radius:17px;background:rgba(49,86,134,.96);
-  border:1px solid var(--glass-edge);
-  box-shadow:inset 0 1px 0 var(--glass-highlight),0 20px 46px rgba(20,48,82,.25);
-  -webkit-backdrop-filter:blur(30px) saturate(160%);
-  backdrop-filter:blur(30px) saturate(160%);
+  max-height:270px;overflow:auto;padding:7px;border-radius:17px;
+  background:rgba(223,243,247,.94);border:1px solid rgba(255,255,255,.86);
+  box-shadow:0 18px 42px rgba(51,93,105,.18),inset 0 1px 0 rgba(255,255,255,.9);
+  -webkit-backdrop-filter:blur(30px) saturate(130%);backdrop-filter:blur(30px) saturate(130%);
   scrollbar-width:none
 }
 .combo-menu::-webkit-scrollbar{display:none}
@@ -128,147 +131,187 @@ main{background:transparent}
   display:flex;align-items:center;justify-content:space-between;gap:14px;
   text-align:left;padding:11px 12px;border-radius:11px;font-size:14px
 }
-.combo-option span{font-weight:650}
-.combo-option small{font-size:12px!important;color:var(--scene-muted)}
-.combo-option:hover,.combo-option[aria-selected="true"]{background:var(--glass-fill-hover)}
-.combo-option:focus-visible{outline:2px solid rgba(255,255,255,.62);outline-offset:1px}
+.combo-option span{font-weight:650}.combo-option small{font-size:12px!important;color:var(--scene-muted)!important}
+.combo-option:hover,.combo-option[aria-selected="true"]{background:rgba(255,255,255,.46)}
+.combo-option:focus-visible{outline:2px solid rgba(15,83,105,.42);outline-offset:1px}
 
-/* Navigation + controls */
+/* Sidebar selection behaves like Apple Music: quiet tonal selection, not a dark card. */
 .v3-rail nav{gap:6px!important}
 .v3-rail nav button{
   min-height:50px;border-radius:14px!important;color:var(--scene-ink)!important;
-  transition:transform .30s var(--ease-liquid),background-color .24s ease,box-shadow .30s var(--ease-liquid)!important
+  transition:background-color .2s ease,box-shadow .24s var(--ease-liquid)!important
 }
-.v3-rail nav button:hover{background:var(--glass-fill-hover)!important;transform:translateX(2px)}
+.v3-rail nav button:hover{background:rgba(255,255,255,.24)!important;transform:none!important}
 .v3-rail nav button[aria-current="page"]{
-  background:var(--glass-fill-strong)!important;
-  border:1px solid var(--glass-edge)!important;
-  box-shadow:inset 0 1px 0 var(--glass-highlight),0 12px 28px rgba(20,48,82,.10)!important;
-  transform:translateX(3px)
+  background:rgba(255,255,255,.46)!important;
+  border:1px solid rgba(255,255,255,.62)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.72)!important;
+  transform:none!important
 }
 .v3-rail nav button span,.v3-rail nav button small{color:var(--scene-muted)!important}
 .v3-rail nav button b{color:var(--scene-ink)!important}
 
-.top-actions input,.quiet,.subnav,.next-step,.source-summary,.integrity,.gate{
-  background:var(--glass-fill)!important;
-  border:1px solid var(--glass-edge)!important;
-  box-shadow:inset 0 1px 0 var(--glass-highlight),0 10px 28px rgba(20,48,82,.08)!important;
-  -webkit-backdrop-filter:blur(22px) saturate(155%)!important;
-  backdrop-filter:blur(22px) saturate(155%)!important
+/* Controls can float; content should stay on the canvas. */
+.top-actions input,.quiet,.subnav{
+  background:var(--glass-fill)!important;border:1px solid var(--glass-edge)!important;
+  box-shadow:inset 0 1px 0 var(--glass-highlight),0 8px 20px rgba(51,93,105,.07)!important;
+  -webkit-backdrop-filter:blur(20px) saturate(125%)!important;backdrop-filter:blur(20px) saturate(125%)!important
 }
 .top-actions input,.quiet{border-radius:13px!important;color:var(--scene-ink)!important}
-.quiet:hover{background:var(--glass-fill-hover)!important;transform:translateY(-1px)}
-.next-step{border-radius:18px!important;padding:13px 16px!important}
+.quiet:hover{background:var(--p3-green)!important;border-color:rgba(255,255,255,.62)!important;transform:none!important}
 .subnav{border-radius:16px!important;padding:4px!important}
 .subnav button{border-radius:12px!important;color:var(--scene-muted)!important}
 .subnav button[aria-current="page"]{
-  background:var(--control-bg)!important;color:var(--control-ink)!important;
-  box-shadow:0 5px 16px rgba(20,48,82,.12),inset 0 1px 0 rgba(255,255,255,.50)!important
+  background:rgba(255,255,255,.67)!important;color:var(--scene-ink)!important;
+  box-shadow:0 4px 12px rgba(51,93,105,.08)!important
 }
 
-/* Content stays directly on the blue field */
+/* Main editorial hierarchy */
 .page-intro h1,.section-head h2,.metric strong,.chart-title h3,.insight h3,.question b,
 .source-item h3,.gate h3,.revision h3,.planner-head h3{color:var(--scene-ink)!important}
 .page-intro p,.section-head p,.metric small,.chart-title span,.insight p,.question:before,
-.empty,.planner-shell>p{color:var(--scene-muted)!important}
-.eyebrow{color:var(--scene-muted)!important}
+.empty,.planner-shell>p,.eyebrow{color:var(--scene-muted)!important}
 .metrics-row,.section,.question-list,.question,.source-list,.source-item,.plan-grid,.plan-item,
 .candidate-list,.candidate-row,.context-disclosure{border-color:var(--scene-line)!important}
 .metric,.section,.paper,.chart-card,.insight,.question{background:transparent!important;box-shadow:none!important}
 .metric{border-color:var(--scene-line)!important}
 
+/* No large pink/blue blended surfaces. Pink/green are compact semantic accents only. */
+.next-step,.source-summary,.integrity,.gate{
+  background:transparent!important;
+  border:0!important;box-shadow:none!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important
+}
+.next-step{
+  border-top:1px solid var(--scene-line)!important;
+  border-bottom:1px solid var(--scene-line)!important;
+  border-radius:0!important;padding:14px 0!important
+}
+.source-summary{border-left:1px solid var(--scene-line)!important;padding-left:18px!important}
+.integrity,.gate{border-top:1px solid var(--scene-line)!important;border-bottom:1px solid var(--scene-line)!important;border-radius:0!important}
+.integrity{box-shadow:inset 4px 0 0 var(--p3-green)!important;padding-left:18px!important}
+.gate{box-shadow:inset 4px 0 0 var(--p2-pink)!important;padding-left:18px!important}
+
 .insight,.question,.source-item,.driver-card,.candidate-row{
   border-radius:14px;
-  transition:background-color .20s ease,transform .28s var(--ease-liquid),padding .28s var(--ease-liquid)
+  transition:background-color .18s ease!important
 }
-.insight:hover,.question:hover,.source-item:hover,.driver-card:hover,.candidate-row:hover{background:var(--glass-fill)!important}
-.insight:hover{padding-left:24px!important}
-.question:hover,.source-item:hover{padding-left:12px!important;padding-right:12px!important}
+.insight:hover,.question:hover,.source-item:hover,.driver-card:hover,.candidate-row:hover{
+  background:rgba(255,255,255,.16)!important;transform:none!important
+}
+.insight:hover{padding-left:18px!important}
+.question:hover,.source-item:hover{padding-left:0!important;padding-right:0!important}
+.insight[data-severity="high"]:before{background:var(--p3-green)!important}
+.insight[data-severity="watch"]:before{background:var(--p2-pink)!important}
+
 .insight-actions button,.text-action,.question button,.source-item button,.next-step button{
-  color:var(--scene-ink)!important;opacity:.90
+  color:#0f5369!important;opacity:1!important
 }
-.insight-actions button:hover,.text-action:hover,.question button:hover,.source-item button:hover,.next-step button:hover{
-  opacity:1;text-decoration:none!important;transform:translateY(-1px)
+.next-step button,.primary-action{
+  background:var(--p3-green)!important;color:#0d3026!important;
+  border:1px solid rgba(255,255,255,.62)!important;border-radius:999px!important;
+  min-height:38px;padding:9px 14px!important;font-weight:700!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.48)!important
+}
+.insight-actions button:hover,.text-action:hover,.question button:hover,.source-item button:hover{
+  text-decoration:none!important;color:#0b4052!important;transform:none!important
 }
 .signal,.ai-badge,.muted-badge{
-  background:var(--glass-fill)!important;color:var(--scene-ink)!important;
-  border:1px solid var(--glass-edge)!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.20)!important
+  background:rgba(255,255,255,.28)!important;color:var(--scene-ink)!important;
+  border:1px solid rgba(255,255,255,.58)!important;box-shadow:none!important
 }
-.context-disclosure>summary{border-radius:14px}
-.context-disclosure>summary:hover{background:var(--glass-fill);padding-left:12px;padding-right:12px}
+.planner-warning{color:#8b4653!important}
+.segment-track{background:rgba(16,20,23,.10)!important}.segment-fill{background:var(--p3-green)!important}
 .chart-unavailable{border-color:var(--scene-line)!important;color:var(--scene-muted)!important}
-.segment-track{background:rgba(255,255,255,.13)!important}
-.segment-fill{background:var(--data-primary)!important}
 
-/* Evidence modal: floating liquid sheet, invisible scrollbar, backdrop click supported in JS */
+/* Evidence sheet stays blue/neutral; no pink wash. */
 #evidenceDrawer{
-  width:min(900px,88vw)!important;
-  max-height:88vh!important;
-  padding:0!important;
-  border:1px solid var(--glass-edge)!important;
-  border-radius:30px!important;
-  overflow:hidden!important;
-  background:rgba(62,104,153,.86)!important;
-  color:var(--scene-ink)!important;
-  box-shadow:inset 0 1px 0 var(--glass-highlight),0 34px 90px rgba(20,48,82,.34)!important;
-  -webkit-backdrop-filter:blur(38px) saturate(165%)!important;
-  backdrop-filter:blur(38px) saturate(165%)!important
+  width:min(900px,88vw)!important;max-height:88vh!important;padding:0!important;
+  border:1px solid rgba(255,255,255,.82)!important;border-radius:28px!important;overflow:hidden!important;
+  background:rgba(223,243,247,.92)!important;color:var(--scene-ink)!important;
+  box-shadow:0 30px 78px rgba(51,93,105,.28),inset 0 1px 0 rgba(255,255,255,.88)!important;
+  -webkit-backdrop-filter:blur(36px) saturate(125%)!important;backdrop-filter:blur(36px) saturate(125%)!important
 }
 #evidenceDrawer::backdrop{
-  background:rgba(21,42,68,.18)!important;
-  -webkit-backdrop-filter:blur(13px) saturate(120%)!important;
-  backdrop-filter:blur(13px) saturate(120%)!important
+  background:rgba(61,91,101,.16)!important;
+  -webkit-backdrop-filter:blur(10px) saturate(110%)!important;backdrop-filter:blur(10px) saturate(110%)!important
 }
 .drawer-head{
-  position:sticky;top:0;z-index:2;
-  padding:20px 22px!important;border-bottom:1px solid var(--scene-line)!important;
-  background:rgba(62,104,153,.58);
-  -webkit-backdrop-filter:blur(24px) saturate(150%);
-  backdrop-filter:blur(24px) saturate(150%)
+  position:sticky;top:0;z-index:2;padding:20px 22px!important;
+  border-bottom:1px solid var(--scene-line)!important;background:rgba(223,243,247,.84)!important;
+  -webkit-backdrop-filter:blur(22px) saturate(120%);backdrop-filter:blur(22px) saturate(120%)
 }
 .drawer-head h2,.drawer-head button,.evidence-card h3,.evidence-card dd{color:var(--scene-ink)!important}
 .drawer-head button{
-  width:38px;height:38px;display:grid;place-items:center;padding:0!important;
-  border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;
-  background:rgba(255,255,255,.07)!important;color:var(--scene-ink)!important;
-  font-size:25px!important;font-weight:300!important;line-height:1!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.18)!important
+  width:40px;height:40px;display:grid;place-items:center;padding:0!important;
+  border:1px solid rgba(16,20,23,.10)!important;border-radius:13px!important;
+  background:rgba(255,255,255,.32)!important;color:var(--scene-ink)!important;
+  font-size:25px!important;font-weight:300!important;line-height:1!important
 }
-.drawer-head button:hover{background:rgba(255,255,255,.14)!important;transform:scale(1.04)}
-.drawer-head button:active{transform:scale(.95)}
-.drawer-body{
-  max-height:calc(88vh - 84px);
-  overflow-y:auto!important;overscroll-behavior:contain;
-  padding:22px!important;scrollbar-width:none!important
-}
+.drawer-head button:hover{background:rgba(255,255,255,.52)!important;transform:none!important}
+.drawer-body{max-height:calc(88vh - 84px);overflow-y:auto!important;overscroll-behavior:contain;padding:22px!important;scrollbar-width:none!important}
 .drawer-body::-webkit-scrollbar{display:none!important}
 .evidence-card{border-color:var(--scene-line)!important}
-.evidence-card dt{color:var(--scene-muted)!important}
-.evidence-card a{color:var(--scene-ink)!important;text-underline-offset:4px}
+.evidence-card dt{color:var(--scene-muted)!important}.evidence-card a{color:#0f5369!important;text-underline-offset:4px}
 
-/* Motion */
-::view-transition-old(root),::view-transition-new(root){animation-duration:.30s;animation-timing-function:var(--ease-liquid)}
-#content.is-entering>.page-intro,#content.is-entering>.metrics-row,#content.is-entering>.section,#content.is-entering>.subnav{
-  animation-duration:.38s!important;animation-timing-function:var(--ease-liquid)!important
-}
-@keyframes atlas-liquid-enter{from{opacity:0;transform:translateY(7px) scale(.998)}to{opacity:1;transform:none}}
-#content.is-entering>.page-intro,#content.is-entering>.metrics-row,#content.is-entering>.section,#content.is-entering>.subnav{
-  animation-name:atlas-liquid-enter!important
-}
+/* Sliding navigation: the chrome remains fixed; only #content travels. */
+#content{view-transition-name:atlas-content}
+::view-transition-old(root),::view-transition-new(root){animation:none!important;mix-blend-mode:normal}
+::view-transition-group(atlas-content){animation-duration:.56s;animation-timing-function:var(--ease-liquid)}
+::view-transition-old(atlas-content),::view-transition-new(atlas-content){mix-blend-mode:normal}
+
+html[data-nav-direction="forward"]::view-transition-old(atlas-content){animation:atlas-old-forward .56s var(--ease-liquid) both}
+html[data-nav-direction="forward"]::view-transition-new(atlas-content){animation:atlas-new-forward .56s var(--ease-liquid) both}
+html[data-nav-direction="backward"]::view-transition-old(atlas-content){animation:atlas-old-backward .56s var(--ease-liquid) both}
+html[data-nav-direction="backward"]::view-transition-new(atlas-content){animation:atlas-new-backward .56s var(--ease-liquid) both}
+
+@keyframes atlas-old-forward{to{transform:translateX(-9%);opacity:.70}}
+@keyframes atlas-new-forward{from{transform:translateX(11%);opacity:.86}to{transform:none;opacity:1}}
+@keyframes atlas-old-backward{to{transform:translateX(9%);opacity:.70}}
+@keyframes atlas-new-backward{from{transform:translateX(-11%);opacity:.86}to{transform:none;opacity:1}}
+#content.atlas-slide-forward{animation:atlas-fallback-forward .52s var(--ease-liquid)}
+#content.atlas-slide-backward{animation:atlas-fallback-backward .52s var(--ease-liquid)}
+@keyframes atlas-fallback-forward{from{transform:translateX(7%);opacity:.84}to{transform:none;opacity:1}}
+@keyframes atlas-fallback-backward{from{transform:translateX(-7%);opacity:.84}to{transform:none;opacity:1}}
+
+/* Disable the old per-section "re-enter" animation that caused the flash/reload feeling. */
+#content.is-entering>.page-intro,#content.is-entering>.metrics-row,#content.is-entering>.section,#content.is-entering>.subnav{animation:none!important}
 
 footer{background:transparent!important;border-color:var(--scene-line)!important;color:var(--scene-muted)!important}
 .mobile-nav{
-  background:rgba(49,86,134,.88)!important;border-top:1px solid var(--glass-edge)!important;
-  -webkit-backdrop-filter:blur(28px) saturate(155%)!important;backdrop-filter:blur(28px) saturate(155%)!important
+  background:rgba(223,243,247,.78)!important;border:1px solid rgba(255,255,255,.76)!important;
+  -webkit-backdrop-filter:blur(26px) saturate(120%)!important;backdrop-filter:blur(26px) saturate(120%)!important
 }
 .mobile-nav button{color:var(--scene-muted)!important}.mobile-nav button[aria-current="page"]{color:var(--scene-ink)!important}
 
 @media(max-width:900px){
   .v3-app{margin-left:0!important}
-  .v3-topbar{background:rgba(91,133,190,.82)!important}
+  .v3-topbar{background:rgba(200,233,241,.82)!important}
   .company-combobox{max-width:100%}
+  .mobile-nav{
+    left:12px!important;right:12px!important;bottom:max(12px,env(safe-area-inset-bottom))!important;
+    border-radius:21px!important;border-top:1px solid rgba(255,255,255,.78)!important;
+    box-shadow:0 12px 30px rgba(51,93,105,.14)!important;padding:5px!important
+  }
+  .mobile-nav button{min-height:48px!important;border-radius:16px!important;font-size:11px!important;padding:8px 3px!important}
+  .mobile-nav button[aria-current="page"]{background:rgba(255,255,255,.48)!important}
+  main{padding-bottom:112px!important}
+  .source-summary{border-left:0!important;border-top:1px solid var(--scene-line)!important;padding-left:0!important}
+  .insight-actions button,.text-action,.question button,.source-item button{min-height:44px;padding:10px 6px!important}
+  .top-actions label{display:block!important;font-size:0!important}
+  .top-actions label input{font-size:12px!important}
+}
+@media(max-width:620px){
+  #evidenceDrawer{width:calc(100vw - 20px)!important;border-radius:24px!important}
+}
+@media(prefers-contrast:more){
+  .v3-rail,.v3-topbar,.combo-input-wrap,.combo-menu,.subnav,.mobile-nav,#evidenceDrawer,.drawer-head{
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important
+  }
+  .v3-rail{background:#dff3f7!important}.v3-topbar{background:#c8e9f1!important}
 }
 @media(prefers-reduced-motion:reduce){
-  ::view-transition-old(root),::view-transition-new(root){animation:none!important}
+  ::view-transition-old(root),::view-transition-new(root),
+  ::view-transition-old(atlas-content),::view-transition-new(atlas-content){animation:none!important}
+  #content.atlas-slide-forward,#content.atlas-slide-backward{animation:none!important}
 }

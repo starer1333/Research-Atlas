@@ -3,6 +3,9 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(v,d=0)=>v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
 let token='',companies=[],sourceCapabilities={},state=null,page='research',analysisTab='financials',selectedFinding=null,peerResult=null,scenarioResult=null,plannerResult=null,serial=0;
+const PAGE_ORDER=['research','evidence','analysis','report'];
+const TAB_ORDER=['financials','business','peers','scenario'];
+function directionBetween(order,from,to){const a=order.indexOf(from),b=order.indexOf(to);return b<a?'backward':'forward'}
 
 function context(){return {company:state?.company?.ticker||resolveCompany($('#companySearch').value)?.ticker||'NVDA',asof:$('#asof').value}}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,3200)}
@@ -59,11 +62,19 @@ function setAmbient(){
   delete document.documentElement.dataset.ambient;
   delete document.documentElement.dataset.tone;
 }
-function smoothRender(){
+function smoothRender(direction='forward'){
+  const root=document.documentElement;
+  root.dataset.navDirection=direction;
+  const cleanup=()=>{if(root.dataset.navDirection===direction)delete root.dataset.navDirection};
   if(document.startViewTransition){
-    document.startViewTransition(()=>render());
+    const transition=document.startViewTransition(()=>render());
+    transition.finished.finally(cleanup);
   }else{
     render();
+    const content=$('#content'),cls=direction==='backward'?'atlas-slide-backward':'atlas-slide-forward';
+    content.classList.remove('atlas-slide-forward','atlas-slide-backward');
+    requestAnimationFrame(()=>content.classList.add(cls));
+    setTimeout(()=>{content.classList.remove(cls);cleanup()},560);
   }
 }
 function plannerView(){
@@ -236,7 +247,6 @@ function render(){
   if(page==='evidence')renderEvidence();
   if(page==='analysis')renderAnalysis();
   if(page==='report')renderReport();
-  const content=$('#content');content.classList.remove('is-entering');requestAnimationFrame(()=>content.classList.add('is-entering'));
   renderCharts();
 }
 function openEvidence(f){
@@ -255,10 +265,13 @@ async function saveQuestion(f){
   const source_ids=sourceIdsForFinding(f);if(!source_ids.length)return toast('这条问题还没有可保存的来源链');
   try{await post('question-save',{question:f.question,reason:f.statement,finding_id:f.id,evidence_ids:f.evidence_ids,source_ids,status:'open'});toast('研究问题已保存');await load()}catch(e){showError(e.message)}
 }
-async function loadPeers(){
+async function loadPeers(options={}){
   const candidates=companies.filter(c=>c.ticker!==state.company.ticker&&c.industry===state.company.industry).slice(0,2);
   if(!candidates.length)return toast('当前 fixture 没有同业公司可比较');
-  try{peerResult=await post('compare',{peers:candidates.map(c=>c.ticker),nearby:true});render()}catch(e){showError(e.message)}
+  try{
+    peerResult=await post('compare',{peers:candidates.map(c=>c.ticker),nearby:true});
+    if(options.animate)smoothRender(options.direction||'forward');else render();
+  }catch(e){showError(e.message)}
 }
 async function runScenario(){
   if(!state.defaults)return toast('当前公司/数据不足，无法使用一般企业模型');
@@ -301,21 +314,34 @@ async function init(){
   }catch(e){showError(e.message)}
 }
 document.addEventListener('click',async e=>{
-  const nav=e.target.closest('[data-page]');if(nav){page=nav.dataset.page;smoothRender();return}
-  const tab=e.target.closest('[data-tab]');if(tab){analysisTab=tab.dataset.tab;setAmbient();if(analysisTab==='peers'&&!peerResult)loadPeers();else smoothRender();return}
+  const nav=e.target.closest('[data-page]');if(nav){
+    const next=nav.dataset.page,dir=directionBetween(PAGE_ORDER,page,next);page=next;smoothRender(dir);return
+  }
+  const tab=e.target.closest('[data-tab]');if(tab){
+    const next=tab.dataset.tab,dir=directionBetween(TAB_ORDER,analysisTab,next);analysisTab=next;setAmbient();
+    if(analysisTab==='peers'&&!peerResult)await loadPeers({animate:true,direction:dir});else smoothRender(dir);return
+  }
   const a=e.target.closest('[data-action]');if(a){const f=state.v3.findings.find(x=>x.id===a.dataset.id);selectedFinding=f;
     if(a.dataset.action==='why'){const d=$('#detail-'+CSS.escape(f.id));d.hidden=!d.hidden}
     if(a.dataset.action==='evidence')openEvidence(f);
-    if(a.dataset.action==='compare'){page='analysis';analysisTab='peers';await loadPeers()}
+    if(a.dataset.action==='compare'){
+      const dir=page==='analysis'?directionBetween(TAB_ORDER,analysisTab,'peers'):directionBetween(PAGE_ORDER,page,'analysis');
+      page='analysis';analysisTab='peers';await loadPeers({animate:true,direction:dir})
+    }
     if(a.dataset.action==='research')await saveQuestion(f);return}
   const q=e.target.closest('[data-question]');if(q){await startQuestion(state.v3.questions[Number(q.dataset.question)]);return}
   const s=e.target.closest('[data-source]');if(s){openSource(s.dataset.source);return}
   if(e.target.closest('[data-load-peers]')){await loadPeers();return}
   if(e.target.closest('[data-run-scenario]')){await runScenario();return}
-  if(e.target.closest('[data-go-research]')){page='research';render();return}
+  if(e.target.closest('[data-go-research]')){const dir=directionBetween(PAGE_ORDER,page,'research');page='research';smoothRender(dir);return}
   if(e.target.closest('[data-run-planner]')){await runPlanner();return}
   const pq=e.target.closest('[data-plan-question]');if(pq){await savePlannerQuestion(Number(pq.dataset.planQuestion));return}
-  const n=e.target.closest('[data-next]');if(n){if(n.dataset.next==='analysis'){page='analysis';analysisTab='financials';render()}else if(n.dataset.next==='first-finding'){$('#findings')?.scrollIntoView({behavior:'smooth'})}else if(n.dataset.next==='pending'){document.querySelector('.source-list')?.scrollIntoView({behavior:'smooth'})}return}
+  const n=e.target.closest('[data-next]');if(n){
+    if(n.dataset.next==='analysis'){const dir=directionBetween(PAGE_ORDER,page,'analysis');page='analysis';analysisTab='financials';smoothRender(dir)}
+    else if(n.dataset.next==='first-finding'){$('#findings')?.scrollIntoView({behavior:'smooth'})}
+    else if(n.dataset.next==='pending'){document.querySelector('.source-list')?.scrollIntoView({behavior:'smooth'})}
+    return
+  }
 });
 $('#companyToggle').addEventListener('click',()=>setCompanyMenu($('#companyMenu').hidden));
 $('#companySearch').addEventListener('focus',()=>setCompanyMenu(true));
