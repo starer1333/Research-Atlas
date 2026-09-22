@@ -4,19 +4,22 @@ const previewView=new URLSearchParams(location.search).get('view');
 let db={},ticker='NVDA',page=previewView==='business'?'analysis':'research',tab=previewView==='business'?'business':'financials';
 const ratio=(a,b)=>a==null||!b?null:a/b*100,growth=(a,b)=>a==null||b==null||!a?null:(b/a-1)*100;
 function state(){return db[ticker]}
-function chartHost(id,label){return '<div class="chart-canvas" id="'+id+'" role="img" aria-label="'+esc(label)+'"></div>'}
-function sceneTone(){
-  if(page==='research')return 'blue';
-  if(page==='evidence')return 'teal';
-  if(page==='report')return 'gold';
-  if(page==='analysis'){
-    return ({financials:'lavender',business:'green',peers:'mint',scenario:'gold'})[tab]||'lavender';
-  }
-  return 'blue';
+function renderCompanyMenu(){
+  const menu=$('#companyMenu');if(!menu)return;
+  const keys=Object.keys(db||{});
+  menu.innerHTML=keys.map(key=>'<button type="button" class="combo-option" role="option" data-company-option="'+esc(key)+'" aria-selected="'+(key===ticker?'true':'false')+'"><span>'+esc(key)+'</span><small>'+esc(db[key]?.company?.name||'')+'</small></button>').join('');
 }
+function setCompanyMenu(open){
+  const box=$('#companyCombobox'),menu=$('#companyMenu'),button=$('#companySelectButton');
+  if(!box||!menu||!button)return;
+  box.dataset.open=open?'true':'false';menu.hidden=!open;button.setAttribute('aria-expanded',open?'true':'false');
+  if(open)renderCompanyMenu();
+}
+function chartHost(id,label){return '<div class="chart-canvas" id="'+id+'" role="img" aria-label="'+esc(label)+'"></div>'}
 function setAmbient(){
+  // UI Freeze: one fixed blue theme across all pages and companies.
   delete document.documentElement.dataset.ambient;
-  document.documentElement.dataset.tone=sceneTone();
+  delete document.documentElement.dataset.tone;
 }
 function smoothRender(){
   if(document.startViewTransition){document.startViewTransition(()=>render())}
@@ -123,9 +126,30 @@ function businessPreview(s){
 }
 function renderAnalysis(s){$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">ANALYSIS</span><h1>发生了什么，为什么？</h1><p>Financials / Business / Peers / Scenario 都属于 Analysis，不再占据一级导航。</p></div>'+coverage(s)+'</div><div class="subnav"><button data-tab="financials" class="'+(tab==='financials'?'active':'')+'">Financials</button><button data-tab="business" class="'+(tab==='business'?'active':'')+'">Business</button><button data-tab="peers" class="'+(tab==='peers'?'active':'')+'">Peers</button><button data-tab="scenario" class="'+(tab==='scenario'?'active':'')+'">Scenario</button></div><section class="section">'+(tab==='financials'?head('FINANCIAL DIAGNOSTICS','关系优先，不是 ratio 展览','Growth → Profitability → Cash → Working Capital。')+'<div class="findings">'+findings(s).slice(0,3).map(findingCard).join('')+'</div>':tab==='business'?businessPreview(s):tab==='peers'?head('COMPARATIVE REASONING','先判断能不能比，再解释差异','Peer comparison 不等于 leaderboard。')+peerTable():head('QUESTION-FIRST SCENARIO','Scenario 由研究问题触发','静态预览暂不写入参数和版本。')+'<div class="empty"><h3>先保存一个 Research Question</h3><p>V3 不再让用户一进入产品就调 WACC / growth / margin。研究问题 → mechanism → scenario。</p></div>')+'</section>'}
 function renderReport(s){$('#content').innerHTML='<div class="hero"><div><span class="eyebrow">RESEARCH MEMORY</span><h1>我现在怎么看？</h1><p>Report 汇集研究问题、证据、反证、情景和 revision。静态预览不保存真实记录。</p></div>'+coverage(s)+'</div><section class="section">'+head('CURRENT RESEARCH THREADS','正在研究的问题','这里最终会连接 Claim / Counter-evidence / What changes my mind。')+'<div class="timeline">'+findings(s).slice(0,3).map((f,i)=>'<article><span class="eyebrow">OPEN QUESTION · 0'+(i+1)+'</span><h3>'+f.q+'</h3><p>'+f.why+'</p></article>').join('')+'</div></section>'}
-function render(){const s=state();if(!s)return;setAmbient();nav();$('#ticker').textContent=ticker;$('#companyName').textContent=s.company.name;$('#subtitle').textContent=s.company.subtitle||s.company.industry;if(page==='research')renderResearch(s);if(page==='evidence')renderEvidence(s);if(page==='analysis')renderAnalysis(s);if(page==='report')renderReport(s);const content=$('#content');content.classList.remove('is-entering');requestAnimationFrame(()=>content.classList.add('is-entering'));renderCharts()}
+function render(){const s=state();if(!s)return;setAmbient();nav();$('#ticker').textContent=ticker;$('#companyName').textContent=s.company.name;$('#subtitle').textContent=s.company.subtitle||s.company.industry;$('#companySelectValue').textContent=ticker;if(page==='research')renderResearch(s);if(page==='evidence')renderEvidence(s);if(page==='analysis')renderAnalysis(s);if(page==='report')renderReport(s);const content=$('#content');content.classList.remove('is-entering');requestAnimationFrame(()=>content.classList.add('is-entering'));renderCharts()}
 function openEvidenceFor(f){const s=state(),ys=s.diagnostics.years.slice(-2),obs=s.observations.filter(o=>f.metrics.includes(o.metric)&&ys.includes(o.period));$('#drawerTitle').textContent=f.title;$('#drawerBody').innerHTML=obs.map(o=>{const d=source(o.source_id);return '<div class="ev"><span class="eyebrow">'+esc(o.kind)+' · PENDING REVIEW</span><h3>'+esc(o.label||o.metric)+'</h3><dl><dt>Value</dt><dd>'+fmt(o.value)+' '+esc(o.currency)+' '+esc(o.unit)+'</dd><dt>Period</dt><dd>'+esc(o.period)+'</dd><dt>Basis / Scope</dt><dd>'+esc(o.basis)+' · '+esc(o.scope)+'</dd><dt>Source</dt><dd>'+esc(d?.title||o.source_id)+'</dd><dt>Locator</dt><dd>'+esc(d?.locator||'—')+'</dd></dl>'+((d&&d.url)?'<a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a>':'')+'</div>'}).join('');$('#drawer').showModal()}
 document.addEventListener('click',e=>{const p=e.target.closest('[data-page]');if(p){page=p.dataset.page;smoothRender();return}const t=e.target.closest('[data-tab]');if(t){tab=t.dataset.tab;setAmbient();smoothRender();return}const src=e.target.closest('[data-source]');if(src){const d=source(src.dataset.source);$('#drawerTitle').textContent=d.title;$('#drawerBody').innerHTML='<div class="ev"><dl><dt>Disclosed</dt><dd>'+d.disclosed_at+'</dd><dt>Locator</dt><dd>'+esc(d.locator)+'</dd></dl><a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">打开官方原文 ↗</a></div>';$('#drawer').showModal();return}const a=e.target.closest('[data-act]');if(a){const card=a.closest('[data-id]'),f=findings(state()).find(x=>x.id===card.dataset.id);if(a.dataset.act==='why')card.querySelector('.detail').hidden=!card.querySelector('.detail').hidden;if(a.dataset.act==='evidence')openEvidenceFor(f);if(a.dataset.act==='compare'){page='analysis';tab='peers';render()}if(a.dataset.act==='research'){page='report';render()}return}});
 window.addEventListener('resize',()=>window.AtlasPreviewCharts?.resizeAll());
-$('#close').onclick=()=>$('#drawer').close();$('#company').onchange=e=>{ticker=e.target.value;render()};
-fetch('../data.json').then(r=>r.json()).then(x=>{db=x;$('#company').innerHTML=Object.keys(db).map(k=>'<option>'+k+'</option>').join('');render()}).catch(()=>{$('#content').innerHTML='<div class="empty">预览资料加载失败，请稍后刷新。</div>'});
+$('#close').onclick=()=>$('#drawer').close();
+$('#drawer').addEventListener('click',e=>{
+  const d=$('#drawer'),r=d.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();
+});
+$('#companySelectButton').addEventListener('click',()=>setCompanyMenu($('#companyMenu').hidden));
+$('#companyMenu').addEventListener('click',e=>{
+  const option=e.target.closest('[data-company-option]');if(!option)return;
+  ticker=option.dataset.companyOption;setCompanyMenu(false);smoothRender();
+});
+$('#companyMenu').addEventListener('keydown',e=>{
+  const options=[...$('#companyMenu').querySelectorAll('[data-company-option]')],current=options.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'){e.preventDefault();options[Math.min(options.length-1,current+1)]?.focus()}
+  if(e.key==='ArrowUp'){e.preventDefault();(current<=0?$('#companySelectButton'):options[current-1])?.focus()}
+  if(e.key==='Enter'&&document.activeElement?.dataset?.companyOption){e.preventDefault();ticker=document.activeElement.dataset.companyOption;setCompanyMenu(false);smoothRender()}
+  if(e.key==='Escape'){setCompanyMenu(false);$('#companySelectButton').focus()}
+});
+$('#companySelectButton').addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){e.preventDefault();setCompanyMenu(true);$('#companyMenu [data-company-option]')?.focus()}
+  if(e.key==='Escape')setCompanyMenu(false);
+});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#companyCombobox'))setCompanyMenu(false)});
+fetch('../data.json').then(r=>r.json()).then(x=>{db=x;const keys=Object.keys(db);if(!db[ticker])ticker=keys[0]||ticker;renderCompanyMenu();render()}).catch(()=>{$('#content').innerHTML='<div class="empty">预览资料加载失败，请稍后刷新。</div>'});
