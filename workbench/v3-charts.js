@@ -44,10 +44,10 @@
       textStyle:{fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif',color:p.ink},
       aria:{enabled:true},
       grid:{left:54,right:42,top:46,bottom:42,containLabel:false},
-      legend:{top:0,left:0,itemWidth:10,itemHeight:6,textStyle:{color:p.muted,fontSize:11}},
-      tooltip:{trigger:'axis',backgroundColor:'rgba(29,29,31,.92)',borderWidth:0,textStyle:{color:'#fff',fontSize:11},padding:[10,12],extraCssText:'border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.16);'},
-      xAxis:{type:'category',axisTick:{show:false},axisLine:{lineStyle:{color:p.line}},axisLabel:{color:p.muted,fontSize:10}},
-      yAxis:{type:'value',splitLine:{lineStyle:{color:p.line}},axisLine:{show:false},axisTick:{show:false},axisLabel:{color:p.muted,fontSize:10,formatter:compact}}
+      legend:{top:0,left:0,itemWidth:10,itemHeight:6,textStyle:{color:p.muted,fontSize:12}},
+      tooltip:{trigger:'axis',backgroundColor:'rgba(29,29,31,.92)',borderWidth:0,textStyle:{color:'#fff',fontSize:12},padding:[10,12],extraCssText:'border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.16);'},
+      xAxis:{type:'category',axisTick:{show:false},axisLine:{lineStyle:{color:p.line}},axisLabel:{color:p.muted,fontSize:12}},
+      yAxis:{type:'value',splitLine:{lineStyle:{color:p.line}},axisLine:{show:false},axisTick:{show:false},axisLabel:{color:p.muted,fontSize:12,formatter:compact}}
     };
   }
   function trajectory(el,rows){
@@ -57,8 +57,8 @@
     const option=baseOption();
     option.xAxis.data=clean.map(r=>r.period);
     option.yAxis=[
-      {...option.yAxis,name:'Revenue',nameTextStyle:{color:p.muted,fontSize:10}},
-      {type:'value',name:'Margin',min:null,max:null,splitLine:{show:false},axisLine:{show:false},axisTick:{show:false},axisLabel:{color:p.muted,fontSize:10,formatter:v=>v+'%'}}
+      {...option.yAxis,name:'Revenue',nameTextStyle:{color:p.muted,fontSize:12}},
+      {type:'value',name:'Margin',min:null,max:null,splitLine:{show:false},axisLine:{show:false},axisTick:{show:false},axisLabel:{color:p.muted,fontSize:12,formatter:v=>v+'%'}}
     ];
     option.tooltip.formatter=params=>{
       const period=params[0]?.axisValue||'';
@@ -92,7 +92,7 @@
       animationDuration:reduced()?0:620,
       color:colors,
       tooltip:{trigger:'item',formatter:x=>x.name+'<br>'+compact(x.value)+' · '+x.percent+'%'},
-      legend:{orient:'vertical',right:0,top:'center',textStyle:{color:p.muted,fontSize:10}},
+      legend:{orient:'vertical',right:0,top:'center',textStyle:{color:p.muted,fontSize:12}},
       series:[{name:'Segment mix',type:'pie',radius:['52%','76%'],center:['38%','50%'],avoidLabelOverlap:true,itemStyle:{borderColor:p.surface,borderWidth:3,borderRadius:8},label:{show:false},emphasis:{label:{show:true,fontSize:12,fontWeight:600}},data}]
     },true);
   }
@@ -115,8 +115,8 @@
         return (item?.name||'Bridge')+'<br>Δ '+(item?.value>0?'+':'')+compact(item?.value);
       }},
       grid:{left:46,right:18,top:26,bottom:64},
-      xAxis:{type:'category',data:items.map(x=>x.name),axisLabel:{color:p.muted,fontSize:9,rotate:18},axisTick:{show:false},axisLine:{lineStyle:{color:p.line}}},
-      yAxis:{type:'value',axisLabel:{color:p.muted,fontSize:9,formatter:compact},splitLine:{lineStyle:{color:p.line}}},
+      xAxis:{type:'category',data:items.map(x=>x.name),axisLabel:{color:p.muted,fontSize:12,rotate:18},axisTick:{show:false},axisLine:{lineStyle:{color:p.line}}},
+      yAxis:{type:'value',axisLabel:{color:p.muted,fontSize:12,formatter:compact},splitLine:{lineStyle:{color:p.line}}},
       series:[
         {type:'bar',stack:'total',silent:true,itemStyle:{borderColor:'transparent',color:'transparent'},emphasis:{itemStyle:{borderColor:'transparent',color:'transparent'}},data:base},
         {name:'Increase',type:'bar',stack:'total',data:pos,itemStyle:{color:p.success,borderRadius:[4,4,2,2]}},
@@ -136,10 +136,10 @@
     chart.setOption({
       animationDuration:reduced()?0:620,
       tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
-      legend:{top:0,textStyle:{color:p.muted,fontSize:10}},
+      legend:{top:0,textStyle:{color:p.muted,fontSize:12}},
       grid:{left:54,right:18,top:42,bottom:42},
-      xAxis:{type:'category',data:metrics.map(x=>x[1]),axisLabel:{color:p.muted,fontSize:9},axisTick:{show:false},axisLine:{lineStyle:{color:p.line}}},
-      yAxis:{type:'value',axisLabel:{color:p.muted,fontSize:9,formatter:v=>v+'%'},splitLine:{lineStyle:{color:p.line}}},
+      xAxis:{type:'category',data:metrics.map(x=>x[1]),axisLabel:{color:p.muted,fontSize:12},axisTick:{show:false},axisLine:{lineStyle:{color:p.line}}},
+      yAxis:{type:'value',axisLabel:{color:p.muted,fontSize:12,formatter:v=>v+'%'},splitLine:{lineStyle:{color:p.line}}},
       series:rows.map((row,i)=>({
         name:row.ticker,
         type:'bar',
