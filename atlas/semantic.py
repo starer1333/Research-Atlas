@@ -6,7 +6,7 @@ The contract intentionally stays relational; a graph database is not required.
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
-SCHEMA_VERSION="3.3"
+SCHEMA_VERSION="3.4"
 
 @dataclass(frozen=True)
 class Company:
@@ -67,6 +67,7 @@ class Observation:
     period_end:Optional[str]=None
     source_tag:Optional[str]=None
     formula:Optional[str]=None
+    depends_on:list=field(default_factory=list)
     metadata:dict=field(default_factory=dict)
 
 @dataclass(frozen=True)
@@ -216,8 +217,8 @@ def build_semantic_snapshot(state):
             accounting_basis=o.get("basis",profile.get("basis","GAAP")),scope=o.get("scope",profile.get("scope","consolidated")),
             value_kind=o.get("kind","Unknown"),review_state="reviewed" if o.get("reviewed") else "pending_review",
             disclosed_at=o.get("disclosed_at",""),period_start=o.get("period_start"),period_end=o.get("period_end"),
-            source_tag=o.get("source_tag"),formula=o.get("formula"),
-            metadata={k:o[k] for k in ["source_accession","version_count","restatement_candidate","selection_policy"] if o.get(k) is not None},
+            source_tag=o.get("source_tag"),formula=o.get("formula"),depends_on=list(o.get("depends_on",[])),
+            metadata={k:o[k] for k in ["source_accession","version_count","restatement_candidate","selection_policy","quote","extraction_review_id"] if o.get(k) is not None},
         ))
     observation_ids={o.id for o in observations}
     segments=[]
@@ -256,39 +257,66 @@ def build_semantic_snapshot(state):
             metadata={k:e[k] for k in ["confidence","relationship","scope"] if e.get(k) is not None},
         ))
     drivers=[]
+    # Legacy profile hypotheses remain readable, but are explicitly marked as legacy.
     for i,d in enumerate(profile.get("market",[])):
         drivers.append(Driver(
             id=f"{ticker}:driver:{i+1}",company_id=ticker,name=d.get("title",f"Driver {i+1}"),
             driver_type=d.get("kind","research_hypothesis"),
             linked_metric_ids=[x for x in d.get("metric_ids",[]) if x in metric_ids],
             source_ids=[d["source"]] if d.get("source") in document_ids else [],
-            model_parameter=d.get("driver"),status="hypothesis",metadata={"description":d.get("body","")},
+            model_parameter=d.get("driver"),status="hypothesis",
+            metadata={"description":d.get("body",""),"origin":"legacy_profile_market"},
         ))
+
+    # Saved operating-driver records are first-class semantic Drivers.
+    driver_records=[r for r in state.get("records",[]) if r.get("kind")=="driver"]
+    superseded_ids={r.get("content",{}).get("parent_id") for r in driver_records if r.get("content",{}).get("parent_id")}
+    output_metric_map={"revenue":"revenue","gross_profit":"gross_profit","ebit":"operating_income"}
+    for r in driver_records:
+        dc=r.get("content",{});row_keys={k for row in dc.get("rows",[]) for k in row}
+        linked=[metric for output,metric in output_metric_map.items() if output in row_keys and metric in metric_ids]
+        template=dc.get("template","operating")
+        drivers.append(Driver(
+            id=r["id"],company_id=ticker,
+            name=dc.get("name") or dc.get("reason") or f"{str(template).title()} operating hypothesis",
+            driver_type=f"model:{template}",linked_metric_ids=linked,
+            source_ids=list(dc.get("source_ids",[])),model_parameter=None,
+            status="superseded" if r["id"] in superseded_ids else "hypothesis",
+            metadata={
+                "origin":"saved_driver_record","model_version":dc.get("model_version"),
+                "template":template,"params":dc.get("params",{}),"period":dc.get("period"),
+                "parent_id":dc.get("parent_id"),"counter":dc.get("counter"),"trigger":dc.get("trigger"),
+            },
+        ))
+
     questions=[];claims=[];revisions=[]
+    revisionable={"question","research","thesis","driver"}
     for r in state.get("records",[]):
         c=r.get("content",{});kind=r.get("kind");rid=r["id"];created=r.get("created_at","")
         if kind=="question":
             questions.append(ResearchQuestion(
                 id=rid,company_id=ticker,question=c.get("question",""),status=c.get("status","open"),
-                evidence_ids=[x for x in c.get("evidence_ids",[]) if x in observation_ids],
-                source_ids=[x for x in c.get("source_ids",[]) if x in document_ids],created_at=created,
+                evidence_ids=list(c.get("evidence_ids",[])),source_ids=list(c.get("source_ids",[])),created_at=created,
                 reason=c.get("reason"),parent_id=c.get("parent_id"),metadata={"finding_id":c.get("finding_id")},
             ))
         elif kind in ("research","thesis"):
+            supporting=list(c.get("supporting_evidence_ids",c.get("evidence_ids",[])))
+            counter=list(c.get("counter_evidence_ids",[]))
             claims.append(Claim(
                 id=rid,company_id=ticker,conclusion=c.get("conclusion") or c.get("title") or "",
-                status=c.get("status","open"),
-                supporting_evidence_ids=[x for x in c.get("evidence_ids",[]) if x in observation_ids],
-                counter_evidence_ids=[],source_ids=[x for x in c.get("source_ids",[]) if x in document_ids],
-                created_at=created,question_id=c.get("question_id"),alternative=c.get("alternative") or c.get("counter"),
+                status=c.get("status","open"),supporting_evidence_ids=supporting,
+                counter_evidence_ids=counter,source_ids=list(c.get("source_ids",[])),
+                created_at=created,question_id=c.get("question_id"),
+                alternative=c.get("alternative") or c.get("counter"),
                 change_trigger=c.get("next_evidence") or c.get("trigger"),metadata={"legacy_kind":kind},
             ))
         parent=c.get("parent_id");change=c.get("change_reason") or c.get("reason")
-        if parent or change:
+        if kind in revisionable and (parent or change):
             revisions.append(Revision(
                 id=f"revision:{rid}",company_id=ticker,object_kind=kind or "record",object_id=rid,
-                created_at=created,change_reason=str(change or "New version"),parent_revision_id=parent,
-                source_ids=[x for x in c.get("source_ids",[]) if x in document_ids],
+                created_at=created,change_reason=str(change or "New version"),
+                parent_revision_id=f"revision:{parent}" if parent else None,
+                source_ids=list(c.get("source_ids",[])),
             ))
     snapshot={
         "schema_version":SCHEMA_VERSION,"company":asdict(company),
@@ -305,24 +333,61 @@ def validate_snapshot(snapshot):
     issues=[];company_id=snapshot["company"]["id"]
     metrics={x["id"] for x in snapshot["metrics"]};docs={x["id"] for x in snapshot["documents"]}
     observations={x["id"] for x in snapshot["observations"]};segments={x["id"] for x in snapshot["segments"]}
+    products={x["id"] for x in snapshot["products"]};drivers={x["id"] for x in snapshot.get("drivers",[])}
+    questions={x["id"] for x in snapshot["research_questions"]};claims={x["id"] for x in snapshot["claims"]}
+    revisions={x["id"] for x in snapshot["revisions"]}
+
     for o in snapshot["observations"]:
         if o["company_id"]!=company_id:issues.append(f"Observation {o['id']} company mismatch")
         if o["metric_id"] not in metrics:issues.append(f"Observation {o['id']} missing Metric")
         if o["document_id"] not in docs:issues.append(f"Observation {o['id']} missing Document")
+        missing=set(o.get("depends_on",[]))-observations
+        if missing:issues.append(f"Observation {o['id']} missing dependency refs: {sorted(missing)}")
+        if o["id"] in set(o.get("depends_on",[])):issues.append(f"Observation {o['id']} cannot depend on itself")
+
     if set(snapshot["company"].get("business_source_ids",[]))-docs:issues.append("Company business_summary missing Document refs")
+
     for s in snapshot["segments"]:
         if s["company_id"]!=company_id:issues.append(f"Segment {s['id']} company mismatch")
         if set(s.get("source_ids",[]))-docs:issues.append(f"Segment {s['id']} missing Document refs")
+
     for p in snapshot["products"]:
         if p["company_id"]!=company_id:issues.append(f"Product {p['id']} company mismatch")
         if p["segment_id"] and p["segment_id"] not in segments:issues.append(f"Product {p['id']} missing Segment")
         if set(p.get("source_ids",[]))-docs:issues.append(f"Product {p['id']} missing Document refs")
+
     for e in snapshot.get("context_entities",[]):
         if e["company_id"]!=company_id:issues.append(f"ContextEntity {e['id']} company mismatch")
         if set(e.get("source_ids",[]))-docs:issues.append(f"ContextEntity {e['id']} missing Document refs")
+
+    for d in snapshot.get("drivers",[]):
+        if d["company_id"]!=company_id:issues.append(f"Driver {d['id']} company mismatch")
+        if set(d.get("linked_metric_ids",[]))-metrics:issues.append(f"Driver {d['id']} missing Metric refs")
+        if set(d.get("source_ids",[]))-docs:issues.append(f"Driver {d['id']} missing Document refs")
+        if d.get("segment_id") and d["segment_id"] not in segments:issues.append(f"Driver {d['id']} missing Segment")
+        if d.get("product_id") and d["product_id"] not in products:issues.append(f"Driver {d['id']} missing Product")
+
     for q in snapshot["research_questions"]:
+        if q["company_id"]!=company_id:issues.append(f"ResearchQuestion {q['id']} company mismatch")
         if set(q["evidence_ids"])-observations:issues.append(f"ResearchQuestion {q['id']} missing Observation refs")
         if set(q["source_ids"])-docs:issues.append(f"ResearchQuestion {q['id']} missing Document refs")
+        if q.get("parent_id") and q["parent_id"] not in questions:issues.append(f"ResearchQuestion {q['id']} missing parent Question")
+
+    for claim in snapshot["claims"]:
+        if claim["company_id"]!=company_id:issues.append(f"Claim {claim['id']} company mismatch")
+        if claim.get("question_id") and claim["question_id"] not in questions:issues.append(f"Claim {claim['id']} missing ResearchQuestion")
+        if set(claim.get("supporting_evidence_ids",[]))-observations:issues.append(f"Claim {claim['id']} missing supporting Observation refs")
+        if set(claim.get("counter_evidence_ids",[]))-observations:issues.append(f"Claim {claim['id']} missing counter Observation refs")
+        if set(claim.get("supporting_evidence_ids",[]))&set(claim.get("counter_evidence_ids",[])):issues.append(f"Claim {claim['id']} overlaps support and counter evidence")
+        if set(claim.get("source_ids",[]))-docs:issues.append(f"Claim {claim['id']} missing Document refs")
+
+    revisionable=drivers|questions|claims
+    for rev in snapshot["revisions"]:
+        if rev["company_id"]!=company_id:issues.append(f"Revision {rev['id']} company mismatch")
+        if rev["object_id"] not in revisionable:issues.append(f"Revision {rev['id']} missing revised object")
+        if rev.get("parent_revision_id") and rev["parent_revision_id"] not in revisions:issues.append(f"Revision {rev['id']} missing parent Revision")
+        if set(rev.get("source_ids",[]))-docs:issues.append(f"Revision {rev['id']} missing Document refs")
+
     return {
         "ok":not issues,"issues":issues,
         "object_counts":{k:len(snapshot[k]) for k in ["metrics","documents","observations","segments","products","context_entities","drivers","research_questions","claims","revisions"]},
