@@ -138,7 +138,7 @@ def build_findings(profile, diagnostics, observations):
             p,
         )
 
-    segments=profile.get("segments",[])
+    segments=[s for s in profile.get("segments",[]) if s.get("semantic_role")!="consolidated_total"]
     revenue=current.get("revenue")
     if revenue and segments:
         largest=max((s.get("value",0) for s in segments),default=0)
@@ -197,7 +197,7 @@ def build_v3_view(profile,diagnostics,periods,observations,documents,relations):
     summary=("当前档案将 %s 归类为 %s；主要商业模式：%s。" %
              (profile.get("name",profile.get("ticker","公司")),profile.get("industry","待分类"),
               "、".join(business_models) if business_models else "待补充"))
-    semantic_segments=profile.get("business_segments") or profile.get("segments",[])
+    semantic_segments=profile.get("business_segments") or [s for s in profile.get("segments",[]) if s.get("semantic_role")!="consolidated_total"]
     return {
         "summary":summary,
         "business_map":{
