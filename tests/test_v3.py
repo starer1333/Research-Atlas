@@ -11,7 +11,10 @@ def test_v3_view_and_findings():
         state=store.state("NVDA","2025-03-01")
         assert "v3" in state
         view=state["v3"]
-        assert set(["summary","trajectory","findings","questions","source_coverage","data_integrity","company_map","industry_module"]) <= set(view)
+        assert set(["summary","trajectory","findings","questions","source_coverage","data_integrity","company_map","industry_module","visualization_grammar"]) <= set(view)
+        assert view["visualization_grammar"]["version"]=="3.9"
+        assert view["visualization_grammar"]["library"]=="Apache ECharts 6.1"
+        assert any(chart["id"]=="financial-trajectory" for chart in view["visualization_grammar"]["charts"])
         visible={o["id"] for o in state["observations"]}
         for finding in view["findings"]:
             assert set(finding["evidence_ids"]) <= visible
