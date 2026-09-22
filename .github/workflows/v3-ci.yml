@@ -25,6 +25,8 @@ jobs:
         run: python -B tests/test_semantic.py
       - name: V3 SEC starter transform
         run: python -B tests/test_sec_starter.py
+      - name: V3 10-K filing-text semantics
+        run: python -B tests/test_filing_text.py
       - name: V3 guided workflow
         run: python -B tests/test_v3.py
       - name: Existing research tests
